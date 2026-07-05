@@ -15,8 +15,13 @@ Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV
 
 | Client | Verzeichnis | Zweck | Status |
 |--------|-------------|-------|--------|
-| **Board-Client** (Android) | [`app/`](./app/) | Ink-Oberfläche am CTOUCH-Board / Tablet | in Entwicklung |
+| **Board-Client** (Android) | [`app/`](./app/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
 | **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC | geplant |
+
+> **Stand heute:** Der Android-Client ist ein **rudimentärer Prototyp**, entstanden
+> als Latenz-Test auf einem echten CTOUCH-Board. Der Test war **erfolgreich** (die
+> Stift-Latenz taugt für den Unterrichtseinsatz) — das ist der Startschuss, aus dem
+> Testbed „Inktest" das echte Produkt **Skribo** zu bauen.
 
 > **Arbeitstitel „Inktest":** Der Repo-/Ordnername stammt vom eingebauten Tuning-/Metrics-Testbed,
 > mit dem Rendering-Performance und Stift-Latenz auf den Boards vermessen werden.
