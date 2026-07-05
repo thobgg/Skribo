@@ -1,11 +1,27 @@
 # Skribo (Inktest)
 
-**Native Handschrift-/Notiz-App für Android — Tablet-first, Stylus-optimiert.**
+**Handschrift-App für Unterrichtsplanung — OneNote-artig, mit bidirektionaler
+WebDAV-Sync zwischen Desktop-PC und CTOUCH-Boards.**
 
-Skribo ist eine schnelle, latenzarme Ink-App für Android-Tablets: schreiben mit
-dem Stift, organisiert in Abschnitten und Seiten, mit optionaler WebDAV-Synchronisation.
-Der Projektname **Inktest** stammt vom eingebauten Tuning-/Metrics-Testbed, mit dem
-Rendering-Performance und Stift-Latenz systematisch vermessen werden.
+Skribo unterstützt den Workflow von Lehrkräften: **Unterrichtsplanung am Desktop-PC**
+(ähnlich OneNote) und **Präsentieren/Annotieren am CTOUCH-Board** im Klassenraum —
+beide Seiten bleiben über **WebDAV bidirektional synchron**. Was am PC vorbereitet
+wird, liegt live auf dem Board; was im Unterricht am Board handschriftlich ergänzt
+wird, fließt zurück.
+
+Diese Android-App ist der Board-/Tablet-Client: eine schnelle, latenzarme Ink-Oberfläche
+(schreiben mit dem Stift, organisiert in Abschnitten und Seiten). Der Projektname
+**Inktest** stammt vom eingebauten Tuning-/Metrics-Testbed, mit dem Rendering-Performance
+und Stift-Latenz auf den Boards systematisch vermessen werden.
+
+## Warum
+
+Für die Kombination aus **Unterrichtsplanung am PC** und **handschriftlichem Arbeiten
+am CTOUCH-Board** gibt es keine nahtlose Lösung ohne Cloud-Zwang: OneNote bindet an
+Microsoft-Konten/Cloud, und die bidirektionale Synchronisation Desktop ↔ Board läuft
+nicht offen über selbst gehostetes WebDAV. Skribo setzt genau hier an — eigenes,
+offenes On-Disk-Schema, Sync über den eigenen WebDAV-Server, Board als
+gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
 
 ## Features
 
@@ -15,7 +31,8 @@ Rendering-Performance und Stift-Latenz systematisch vermessen werden.
 - **Werkzeuge:** Stift, Textmarker, Linie, Text, Bild, Radierer
 - **Papierstile:** Blank, Lineiert, Kariert, Punkte, Legal (gelb)
 - **Struktur:** Abschnitte → Seiten → Unterseiten
-- **WebDAV-Sync** (`SkriboSync`) auf das Skribo-On-Disk-Schema
+- **Bidirektionale WebDAV-Sync** (`SkriboSync`) Desktop ↔ Board auf ein offenes
+  Skribo-On-Disk-Schema (kein Cloud-Zwang, selbst hostbar)
 - **Tuning-/Metrics-Panel** — Layer-Typ, Bitmap-Config, Antialiasing, Clipping,
   Damage-Rect-Invalidation u.v.m. live umschaltbar zum Latenz-Benchmarking
 
