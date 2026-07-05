@@ -80,8 +80,18 @@ produktionsreif.
 - **Distribution:** intern, APK direkt auf die Boards (kein Store).
 - **Lizenz:** GPLv3 (offener Quellcode).
 - **Datenhaltung:** eigener WebDAV-Server, offenes JSON-Schema, kein Cloud-Zwang.
+  **WebDAV läuft bereits auf dem eigenen NAS** (eingerichtet, einsatzbereit).
 
-## 6. Offene Punkte / To decide
+## 6. Getroffene Entscheidungen
+
+- **Sync-Ziel: eigenes NAS statt OneDrive.** Abgewogen wurde OneDrive vs.
+  selbst gehostetes NAS-WebDAV; Wahl fiel auf das **NAS** — Datenhoheit,
+  kein Microsoft-Konto-/Cloud-Zwang, DSGVO-freundlich im Schulkontext. Der
+  WebDAV-Server ist bereits eingerichtet.
+- **Zwei-Client-System in einem Monorepo** (Board + Desktop).
+- **Lizenz GPLv3**, interne APK-Distribution (kein Store).
+
+## 7. Offene Punkte / To decide
 
 - Desktop-Client: Plattform/Tech-Stack (Web? Kotlin Multiplatform? Electron?),
   Verzeichnisstruktur im Monorepo (`android/` + `desktop/`?).
