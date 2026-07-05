@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inktest · Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Fraunces:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:#ececec;color:#1c1c1c}
+.wrap{max-width:1200px;margin:0 auto;padding:70px 40px 80px}
+h1{font-size:44px;margin:0 0 10px;letter-spacing:-0.025em;font-weight:600}
+.lede{color:#666;font-size:17px;margin:0 0 40px;max-width:680px;line-height:1.5}
+.section-title{font-size:13px;text-transform:uppercase;letter-spacing:0.1em;color:#888;font-weight:600;margin:40px 0 16px 4px}
+.section-title:first-of-type{margin-top:0}
+
+.hero-card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.06),0 22px 50px rgba(0,0,0,0.1);transition:transform 0.25s ease;display:flex;margin-bottom:24px}
+.hero-card:hover{transform:translateY(-4px)}
+.hero-card a{color:inherit;text-decoration:none;display:flex;width:100%}
+.hero-cover{width:340px;flex-shrink:0;background:linear-gradient(135deg,#7719AA 0%,#512B68 100%);color:#fff;font-family:'Segoe UI',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;position:relative}
+.hero-cover .mark{font-size:48px;letter-spacing:-0.02em}
+.hero-cover .dot{position:absolute;bottom:16px;right:18px;font-size:11px;opacity:0.7;letter-spacing:0.08em;text-transform:uppercase}
+.hero-body{padding:28px 32px;display:flex;flex-direction:column;justify-content:center;flex:1}
+.hero-body .badge{display:inline-block;background:#E7D3F2;color:#512B68;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:0.04em;margin-bottom:10px;align-self:flex-start}
+.hero-body h2{margin:0 0 8px;font-size:22px;font-weight:600}
+.hero-body p{margin:0 0 14px;color:#666;line-height:1.55;font-size:14px}
+.hero-body .meta{color:#888;font-size:12px}
+.hero-body .meta strong{color:#512B68}
+
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06),0 14px 32px rgba(0,0,0,0.08);transition:transform 0.25s ease;display:flex;flex-direction:column;opacity:0.78}
+.card:hover{transform:translateY(-4px);opacity:1}
+.card a{color:inherit;text-decoration:none;display:flex;flex-direction:column;height:100%}
+.cover{height:180px;display:flex;align-items:center;justify-content:center;position:relative}
+.cover .mark{font-size:38px;letter-spacing:-0.02em}
+.body{padding:18px 22px 22px}
+.body h2{margin:0 0 6px;font-size:18px;font-weight:600}
+.body p{margin:0;color:#666;line-height:1.5;font-size:13px}
+.gn .cover{background:linear-gradient(135deg,#F7F1E3 0%,#E8DBBE 100%);color:#3c3a36;font-family:-apple-system,'SF Pro',sans-serif}
+.gn .cover .mark{font-weight:500}
+.at .cover{background:#F9F5EF;color:#1A1D24;font-family:Fraunces,serif;font-style:italic;font-weight:500}
+.at .cover::before{content:'';position:absolute;top:0;bottom:0;left:18px;width:2px;background:#B85C4A}
+.ref-note{color:#888;font-size:12px;font-style:italic;margin-top:8px}
+
+footer{margin-top:60px;color:#888;font-size:13px;line-height:1.6}
+footer code{background:rgba(0,0,0,0.05);padding:2px 6px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Inktest · Mockups</h1>
+  <p class="lede">Basis OneNote-Layout, Farbe/Schrift per Theme-Switcher wechselbar. Die zwei anderen DNA-Varianten stehen als Referenz für Theme-Presets.</p>
+
+  <div class="section-title">Gewählt · v1-Spec</div>
+  <div class="hero-card">
+    <a href="onenote.html">
+      <div class="hero-cover"><span class="mark">Inktest</span><span class="dot">v1 · OneNote-Basis</span></div>
+      <div class="hero-body">
+        <div class="badge">GEWÄHLT</div>
+        <h2>OneNote-Layout · v1-Spec</h2>
+        <p>Section-Tabs, Pages mit Unterseiten, vollständige Toolbar, Einstellungen mit Theming- und Engine-Bereich. Enthält alle 54 Features aus dem Checkout-Flow.</p>
+        <div class="meta">4 Screens · Hauptansicht · PDF-Unterlage · Einstellungen · Theme-Switcher</div>
+      </div>
+    </a>
+  </div>
+
+  <div class="section-title">Referenz · Theme-Presets</div>
+  <div class="cards">
+    <div class="card gn"><a href="goodnotes.html">
+      <div class="cover"><span class="mark">Inktest</span></div>
+      <div class="body">
+        <h2>GoodNotes-Warm</h2>
+        <p>Beige-Papier-Ton, Kalam-Schrift, Petrol-Akzent — als Theme-Preset denkbar, nicht als eigenes Layout.</p>
+      </div>
+    </a></div>
+    <div class="card at"><a href="atelier.html">
+      <div class="cover"><span class="mark">Inktest</span></div>
+      <div class="body">
+        <h2>Atelier</h2>
+        <p>Warmes Off-White, Fraunces-Serif, Terracotta-Akzent — als Theme-Preset „Studio" denkbar.</p>
+      </div>
+    </a></div>
+  </div>
+
+  <footer>
+    Lokal öffnen: <code>file:///home/thobug/projects/inktest/mockups/index.html</code><br>
+    Statisch, keine Build-Kette. Google Fonts werden online geladen.
+  </footer>
+</div>
+</body>
+</html>

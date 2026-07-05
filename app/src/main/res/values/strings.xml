@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Skribo</string>
+    <string name="btn_undo">Undo</string>
+    <string name="btn_clear">Clear</string>
+    <string name="btn_tuning">Tuning</string>
+    <string name="btn_metrics">Metrics</string>
+    <string name="btn_reset">Reset to Defaults</string>
+    <string name="btn_redo">Redo</string>
+    <string name="btn_add_section">+ Abschnitt</string>
+    <string name="btn_add_page">+ Seite</string>
+    <string name="btn_add_subpage">↳ Unterseite</string>
+    <string name="dialog_delete_page_title">Seite löschen?</string>
+    <string name="dialog_delete_page_msg">„%1$s" und alle Unterseiten werden entfernt.</string>
+    <string name="dialog_delete">Löschen</string>
+    <string name="dialog_cancel">Abbrechen</string>
+    <string name="dialog_rename_page">Seite umbenennen</string>
+    <string name="dialog_rename_section">Abschnitt umbenennen</string>
+    <string name="dialog_ok">OK</string>
+    <string name="paper_blank">Blank</string>
+    <string name="paper_lined">Lineiert</string>
+    <string name="paper_grid">Kariert</string>
+    <string name="paper_dots">Punkte</string>
+    <string name="paper_legal">Gelb (Legal)</string>
+    <string name="default_section_name">Neuer Abschnitt</string>
+    <string name="default_page_name">Neue Seite</string>
+
+    <string name="tuning_width">Stroke Width</string>
+    <string name="tuning_smooth">Smoothing</string>
+    <string name="tuning_color">Color</string>
+    <string name="tuning_color_black">Black</string>
+    <string name="tuning_color_red">Red</string>
+    <string name="tuning_color_blue">Blue</string>
+    <string name="tuning_color_green">Green</string>
+
+    <string name="tuning_algo">Smoothing Algorithm</string>
+    <string name="tuning_algo_bezier">Bezier</string>
+    <string name="tuning_algo_catmull">Catmull-Rom</string>
+    <string name="tuning_algo_wma">WMA (4)</string>
+
+    <string name="tuning_prediction">Prediction</string>
+    <string name="tuning_prediction_off">Off</string>
+    <string name="tuning_prediction_android">Android</string>
+    <string name="tuning_prediction_linear">Linear 20px</string>
+
+    <string name="tuning_layer">Layer Type</string>
+    <string name="tuning_layer_none">NONE</string>
+    <string name="tuning_layer_hardware">HARDWARE</string>
+    <string name="tuning_layer_software">SOFTWARE</string>
+
+    <string name="tuning_bitmap">Bitmap Config</string>
+    <string name="tuning_bitmap_argb">ARGB_8888</string>
+    <string name="tuning_bitmap_rgb">RGB_565</string>
+
+    <string name="tuning_antialias">Antialiasing</string>
+    <string name="tuning_clipping">Canvas Clipping (bbox)</string>
+    <string name="tuning_damage">Damage-Rect Invalidation</string>
+    <string name="tuning_unbuffered">Unbuffered Dispatch</string>
+</resources>
