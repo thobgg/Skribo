@@ -1,0 +1,579 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Skribo · Datenformat &amp; Sync-Architektur (Phase 1)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F1729;
+  --ink-soft:#1A2237;
+  --paper:#FBFAF6;
+  --paper-warm:#F4EFE5;
+  --rust:#B85C4A;
+  --teal:#06A77D;
+  --line:rgba(15,23,41,0.12);
+  --muted:#6B7280;
+  --code-bg:#1A2237;
+  --code-fg:#E8EAEF;
+  --code-key:#9DCFE8;
+  --code-str:#E0A458;
+  --code-num:#B85C4A;
+  --code-comment:#7A8597;
+}
+*{box-sizing:border-box}
+html,body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink)}
+.wrap{max-width:1180px;margin:0 auto;padding:60px 40px 80px}
+
+/* Hero */
+.hero{background:#fff;border:1px solid var(--line);border-radius:18px;padding:42px 48px;margin-bottom:36px;box-shadow:0 1px 3px rgba(0,0,0,0.04),0 18px 40px rgba(0,0,0,0.06);display:flex;align-items:center;gap:28px}
+.hero-mark{flex-shrink:0;color:var(--ink)}
+.hero-mark svg{width:80px;height:80px}
+.hero-title{font-family:'Space Grotesk',sans-serif;font-size:42px;font-weight:600;letter-spacing:-0.04em;line-height:1;margin:0 0 8px}
+.hero-sub{margin:0;color:var(--muted);font-size:15px;line-height:1.5;max-width:600px}
+.hero-meta{margin-top:14px;display:flex;gap:16px;color:var(--muted);font-size:11.5px;letter-spacing:0.08em;text-transform:uppercase;font-family:'IBM Plex Sans',sans-serif;font-weight:600}
+.hero-meta .pill{background:var(--paper-warm);padding:4px 10px;border-radius:11px;letter-spacing:0.06em}
+
+/* Sections */
+section{margin-bottom:48px}
+.sec-num{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--rust);font-weight:600;letter-spacing:0.04em}
+.sec-title{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:600;letter-spacing:-0.025em;margin:6px 0 12px}
+.sec-lead{font-size:14.5px;color:var(--muted);max-width:780px;line-height:1.6;margin:0 0 22px}
+.sec-lead strong{color:var(--ink);font-weight:600}
+
+/* Hierarchie-Tabelle */
+.hier-table{width:100%;border-collapse:collapse;background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.hier-table th,.hier-table td{padding:14px 18px;text-align:left;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+.hier-table th{background:var(--paper-warm);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.hier-table tr:last-child td{border-bottom:none}
+.hier-table .ui{font-weight:600;font-family:'Space Grotesk',sans-serif;font-size:15.5px}
+.hier-table .code{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--rust)}
+.hier-table .ex{color:var(--muted)}
+.hier-table .ex em{color:var(--ink);font-style:normal;font-weight:500}
+
+/* Tree */
+.tree{background:var(--code-bg);color:var(--code-fg);font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.65;padding:24px 28px;border-radius:14px;overflow-x:auto;white-space:pre}
+.tree .lbl{color:var(--code-comment);font-style:italic}
+.tree .here{color:var(--code-str);font-weight:500}
+.tree .skribo{color:var(--code-key);font-weight:500}
+.tree .file{color:var(--code-fg)}
+.tree .y{color:var(--code-num)}
+
+/* Code */
+.code-block{background:var(--code-bg);color:var(--code-fg);font-family:'IBM Plex Mono',monospace;font-size:13px;line-height:1.65;padding:24px 28px;border-radius:14px;overflow-x:auto;white-space:pre;margin:0}
+.code-block .k{color:var(--code-key)}
+.code-block .s{color:var(--code-str)}
+.code-block .n{color:var(--code-num)}
+.code-block .c{color:var(--code-comment);font-style:italic}
+.code-block .p{color:#7A8597}
+
+.dual{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.dual .col h3{font-size:13px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 10px;font-family:'IBM Plex Sans',sans-serif}
+
+/* Layer-Visual */
+.layers{background:#fff;border:1px solid var(--line);border-radius:14px;padding:32px 36px}
+.layer-stack{position:relative;height:280px;margin:0 auto;max-width:560px}
+.layer{position:absolute;width:100%;border-radius:8px;border:1px solid var(--line);box-shadow:0 6px 18px rgba(15,23,41,0.10);padding:14px 18px;font-size:12.5px;line-height:1.5;display:flex;flex-direction:column;gap:6px;transition:transform 0.3s}
+.layer-base{top:0;background:var(--paper-warm);height:160px}
+.layer-25-26{top:120px;background:#fff;height:160px;color:var(--ink)}
+.layer-26-27{top:240px;background:#fff;height:160px;color:var(--ink)}
+.layer .l-name{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--rust);font-weight:600;letter-spacing:0.04em}
+.layer .l-title{font-weight:600;font-size:14px;color:var(--ink)}
+.layer .l-desc{color:var(--muted);font-size:12px}
+.layer-legend{margin-top:32px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;font-size:13px;color:var(--muted);line-height:1.55}
+.layer-legend strong{color:var(--ink);font-weight:600}
+
+/* App-UI-Layout (OneNote-ähnlich) */
+.app-mock{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.app-titlebar{background:var(--ink);color:var(--paper);padding:8px 16px;display:flex;align-items:center;gap:10px;font-size:12px}
+.app-titlebar svg{width:14px;height:14px;color:var(--paper)}
+.app-titlebar .ttl{font-family:'Space Grotesk',sans-serif;font-weight:600;letter-spacing:-0.01em}
+.app-titlebar .right{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10.5px;opacity:0.7}
+.app-tabs{background:var(--paper-warm);padding:0 16px;display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.app-tab{padding:10px 16px;font-size:12.5px;font-weight:500;color:var(--muted);border-bottom:2px solid transparent;cursor:default}
+.app-tab.active{color:var(--ink);border-bottom-color:var(--rust);background:#fff}
+.app-body{display:grid;grid-template-columns:200px 1fr 220px;height:340px;background:#fff}
+.pane{padding:14px;font-size:12.5px;border-right:1px solid var(--line);overflow:hidden}
+.pane:last-child{border-right:none}
+.pane-title{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 10px;font-family:'IBM Plex Sans',sans-serif}
+.list-item{padding:6px 10px;border-radius:6px;color:var(--ink);font-size:13px;display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.list-item.active{background:var(--paper-warm);font-weight:500}
+.list-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.list-sub{padding-left:20px;font-size:12px;color:var(--muted)}
+.list-sub.active{color:var(--ink);font-weight:500}
+.canvas-pane{padding:24px;background:repeating-linear-gradient(0deg,transparent 0,transparent 23px,rgba(15,23,41,0.05) 23px,rgba(15,23,41,0.05) 24px);position:relative}
+.canvas-pane h4{font-family:'Space Grotesk',sans-serif;font-size:18px;font-weight:600;margin:0 0 12px;letter-spacing:-0.02em}
+.canvas-pane p{font-size:13px;color:var(--ink);margin:0 0 8px;line-height:1.5}
+.canvas-pane .annotation{color:var(--rust);font-weight:600;font-style:italic}
+.year-toggle{position:absolute;top:14px;right:18px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--ink);font-family:'IBM Plex Mono',monospace;font-weight:500;display:flex;align-items:center;gap:8px}
+.year-toggle .active-year{color:var(--rust);font-weight:600}
+.ghost-toggle{position:absolute;top:14px;right:130px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;display:flex;align-items:center;gap:6px}
+.ghost-toggle::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--muted);opacity:0.4}
+
+/* Settings-Mockup */
+.settings{background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px 28px}
+.setting-row{display:grid;grid-template-columns:160px 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px;align-items:center}
+.setting-row:last-child{border-bottom:none}
+.setting-label{font-weight:600;color:var(--ink)}
+.setting-label small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:2px}
+.setting-value{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--ink-soft);background:var(--paper-warm);padding:6px 10px;border-radius:6px}
+.setting-list{display:flex;flex-direction:column;gap:6px}
+.setting-list .item{background:var(--paper-warm);padding:8px 12px;border-radius:8px;display:flex;align-items:center;gap:10px;font-size:12.5px}
+.setting-list .item .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.setting-list .item .nm{font-weight:600}
+.setting-list .item .pth{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--muted);margin-left:auto}
+
+/* Sync Cards */
+.sync-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.sync-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px}
+.sync-card h4{margin:0 0 8px;font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.sync-card p{margin:0;font-size:13px;color:var(--muted);line-height:1.55}
+.sync-card .step{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--rust);font-weight:600;letter-spacing:0.06em;margin-bottom:8px;text-transform:uppercase}
+
+footer{margin-top:60px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;letter-spacing:0.04em}
+footer code{background:rgba(15,23,41,0.06);padding:2px 6px;border-radius:4px;font-size:11px}
+
+@media (max-width:880px){
+  .dual,.sync-grid{grid-template-columns:1fr}
+  .app-body{grid-template-columns:1fr}
+  .hero{flex-direction:column;text-align:center}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="mark-swing" viewBox="0 0 100 100">
+      <path d="M 78 24 C 78 11, 32 11, 32 28 C 32 44, 78 44, 78 62 C 78 80, 26 84, 26 70"
+        stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <!-- Hero -->
+  <header class="hero">
+    <div class="hero-mark"><svg><use href="#mark-swing"/></svg></div>
+    <div>
+      <h1 class="hero-title">Datenformat &amp; Sync</h1>
+      <p class="hero-sub">Phase 1 von Skribo — wie Notizbücher, Abschnitte und Seiten auf der NAS / im OneDrive organisiert sind, welche JSON-Schemata die Daten tragen, wie das Layer-Modell mit Frozen-Base pro Schuljahr Wiederverwendbarkeit absichert, und welche Storage-Backends austauschbar sind.</p>
+      <div class="hero-meta">
+        <span class="pill">Phase 1 · Spec v2</span>
+        <span>Stand 2026-04-29</span>
+        <span>Variante A: skribo/-Subfolder</span>
+        <span>Frozen-Base 2.0 · Storage-Interface</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 1. Hierarchie -->
+  <section>
+    <div class="sec-num">01 / 06</div>
+    <h2 class="sec-title">Hierarchie — drei Ebenen, drei Begriffe</h2>
+    <p class="sec-lead">Die App-UI verwendet dein Vokabular (Notizbuch / Abschnitt / Seite), intern bleibt es bei den v1-Code-Begriffen (Section / Page / Subpage). Das Mapping ist eindeutig.</p>
+    <table class="hier-table">
+      <thead>
+        <tr>
+          <th>UI-Begriff (was du siehst)</th>
+          <th>Intern (Code)</th>
+          <th>Beispiel aus deiner NAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="ui">Notizbuch</td>
+          <td class="code">Section</td>
+          <td class="ex">„<em>Mathe 9</em>" → <code>Mathematik/Sek.I/Mathe9/</code></td>
+        </tr>
+        <tr>
+          <td class="ui">Abschnitt <span style="color:var(--muted);font-weight:400">/ Kapitel</span></td>
+          <td class="code">Page (Parent)</td>
+          <td class="ex">„<em>01 Ähnlichkeit und Strahlensätze</em>" → <code>…/01 Ähnlichkeit und Strahlensätze/skribo/</code></td>
+        </tr>
+        <tr>
+          <td class="ui">Seite <span style="color:var(--muted);font-weight:400">/ Unterabschnitt</span></td>
+          <td class="code">Subpage</td>
+          <td class="ex">„<em>Strahlensatz Beweis</em>" → <code>…/skribo/strahlensatz-beweis/</code></td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="sec-lead" style="margin-top:18px"><strong>Wichtig:</strong> Eine Seite ist <strong>kein Schul-Stunden-Konzept</strong> — eine Seite ist ein Inhalts-Item (kann eine halbe Stunde sein, eine ganze, oder über mehrere Stunden gehen). Du strukturierst nach Stoff, nicht nach Schulstunden. Ein Abschnitt kann <strong>selbst</strong> Stoff tragen (Übersichts-Seite mit Lernzielen, Stoffverteilung) <strong>und</strong> Seiten drunter haben.</p>
+  </section>
+
+  <!-- 2. Sync-Roots & Notizbuch-Mapping (Settings) -->
+  <section>
+    <div class="sec-num">02 / 06</div>
+    <h2 class="sec-title">Sync-Roots &amp; Notizbuch-Mapping</h2>
+    <p class="sec-lead">Skribo kennt mehrere <strong>Sync-Roots</strong> (Top-Level-Ordner auf der NAS). Pro Notizbuch wird ein konkreter Pfad innerhalb eines Roots konfiguriert — frei, nicht hardcoded. Beispiel-Settings für deinen Workflow:</p>
+    <div class="settings">
+      <div class="setting-row">
+        <div class="setting-label">Sync-Roots <small>(in Skribo-Settings)</small></div>
+        <div class="setting-list">
+          <div class="item"><span class="dot" style="background:var(--rust)"></span><span class="nm">Mathematik</span><span class="pth">https://skribo.bgg-home.de/Mathematik</span></div>
+          <div class="item"><span class="dot" style="background:var(--teal)"></span><span class="nm">Geographie</span><span class="pth">https://skribo.bgg-home.de/Geographie</span></div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Notizbücher <small>(beliebig konfigurierbar)</small></div>
+        <div class="setting-list">
+          <div class="item"><span class="dot" style="background:#1A8FE3"></span><span class="nm">Mathe 9</span><span class="pth">Mathematik/Sek.I/Mathe9</span></div>
+          <div class="item"><span class="dot" style="background:#EF7D00"></span><span class="nm">Mathe 7</span><span class="pth">Mathematik/Sek.I/Mathe7</span></div>
+          <div class="item"><span class="dot" style="background:#9B59B6"></span><span class="nm">Modul 5 Stochastik</span><span class="pth">Mathematik/Sek.II/Module/Modul 5 - Anwendungsprobleme der Stochastik</span></div>
+          <div class="item"><span class="dot" style="background:#06A77D"></span><span class="nm">Geo 7</span><span class="pth">Geographie/Sek.I/Geo7</span></div>
+          <div class="item"><span class="dot" style="background:#E0A458"></span><span class="nm">Geo S1-2</span><span class="pth">Geographie/Sek.II/S1-2</span></div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Aktives Schuljahr <small>(globaler Schalter)</small></div>
+        <div class="setting-value">25-26</div>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">App-Lock</div>
+        <div class="setting-value">PIN · 5 Stellen</div>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:14px">Sek.II ist nicht klassen-basiert — du legst dort Notizbücher an, die auf Module, Kurse oder Jahres-Bündel zeigen können. Skribo zwingt dich in keine Klassenstufen-Logik.</p>
+  </section>
+
+  <!-- 3. NAS-Verzeichnisstruktur -->
+  <section>
+    <div class="sec-num">03 / 06</div>
+    <h2 class="sec-title">NAS-Verzeichnisstruktur (Variante A)</h2>
+    <p class="sec-lead">Skribo lebt als <code>skribo/</code>-Subfolder <strong>im Themen-Ordner</strong>. Bestehendes Material (PDFs, Word-Docs, Bilder) bleibt unangetastet daneben liegen. Beispiel mit echten Pfaden aus deinem Mathe 9:</p>
+<pre class="tree">https://skribo.bgg-home.de/<span class="here">Mathematik/</span>          <span class="lbl">← Sync-Root (WebDAV-URL)</span>
+└── Sek.I/
+    └── <span class="here">Mathe9/</span>                              <span class="lbl">← Notizbuch („Mathe 9")</span>
+        ├── 00 Orga/
+        ├── <span class="here">01 Ähnlichkeit und Strahlensätze/</span>   <span class="lbl">← Abschnitt</span>
+        │   ├── Aufgabenblatt-1.pdf                <span class="lbl">[bestehend, unberührt]</span>
+        │   ├── Lehrervortrag.docx                  <span class="lbl">[bestehend]</span>
+        │   └── <span class="skribo">skribo/</span>                              <span class="lbl">← Skribo-Inhalte</span>
+        │       ├── <span class="file">base.json</span>                       <span class="lbl">← Übersichts-Seite des Abschnitts (optional)</span>
+        │       ├── annotations/
+        │       │   └── <span class="y">25-26.json</span>                  <span class="lbl">← Annotationen 25/26 zur Übersicht</span>
+        │       ├── strahlensatz-beweis/           <span class="lbl">← Seite (Subpage)</span>
+        │       │   ├── <span class="file">base.json</span>                   <span class="lbl">← live, vorbereiteter Inhalt</span>
+        │       │   ├── base.snapshots/            <span class="lbl">← eingefrorene Basis pro Schuljahr (lazy, Copy-on-Write)</span>
+        │       │   │   └── <span class="y">25-26.json</span>              <span class="lbl">← Snapshot beim Wechsel auf 26-27</span>
+        │       │   ├── annotations/
+        │       │   │   ├── <span class="y">25-26.json</span>              <span class="lbl">← Strokes vom Board 25/26 (gegen Snapshot rendern)</span>
+        │       │   │   └── <span class="y">26-27.json</span>              <span class="lbl">← Strokes vom Board 26/27 (gegen live base)</span>
+        │       │   └── assets/                    <span class="lbl">← referenzierte Dateien (PDFs, Bilder)</span>
+        │       │       ├── aufgabenblatt.pdf      <span class="lbl">← live, DIN A4 druckbar (Word-Export)</span>
+        │       │       ├── dreieck.png
+        │       │       └── .skribo-archive/       <span class="lbl">← versionierte alte Versionen (Copy-on-Write)</span>
+        │       │           └── aufgabenblatt-sha256-abc123.pdf
+        │       └── strahlensatz-anwendung/
+        │           ├── <span class="file">base.json</span>
+        │           └── annotations/<span class="y">25-26.json</span>
+        ├── 02 Quadratische Funktionen und Gleichungen/
+        ├── 03 Satzgruppe des Pythagoras/
+        └── …</pre>
+    <p class="sec-lead" style="margin-top:14px">Der <code>skribo/</code>-Ordner ist Skribos Reservat — alles drin gehört der App. Alles drumherum (PDFs, Docs) wird gelesen ist aber außerhalb der App-Hierarchie (Skribo zeigt es höchstens als „Anhänge zum Abschnitt" an, schreibt es aber nie um). Beim Aufräumen reicht <code>rm -r skribo/</code>, das alte Material bleibt.</p>
+  </section>
+
+  <!-- 4. Schemas -->
+  <section>
+    <div class="sec-num">04 / 06</div>
+    <h2 class="sec-title">JSON-Schemata — base.json &amp; annotations/&lt;jahr&gt;.json</h2>
+    <p class="sec-lead">Zwei Datei-Typen pro Seite: die <strong>Basis</strong> (vorbereiteter Inhalt, einmal angelegt, jährlich ergänzbar) und die <strong>Annotations-Schicht</strong> (was am Board entstand, ein Track pro Schuljahr). Skribo rendert Basis unten + aktive Schicht darüber.</p>
+    <div class="dual">
+      <div class="col">
+        <h3>base.json</h3>
+<pre class="code-block">{
+  <span class="k">"schemaVersion"</span>: <span class="n">1</span>,
+  <span class="k">"type"</span>: <span class="s">"skribo-base"</span>,
+  <span class="k">"id"</span>: <span class="s">"01HXB7K2P9R..."</span>,
+  <span class="k">"title"</span>: <span class="s">"Strahlensatz Beweis"</span>,
+  <span class="k">"createdAt"</span>: <span class="s">"2026-08-15T14:00:00Z"</span>,
+  <span class="k">"updatedAt"</span>: <span class="s">"2026-09-02T11:23:00Z"</span>,
+  <span class="k">"order"</span>: <span class="n">1</span>,
+  <span class="k">"paper"</span>: {
+    <span class="k">"type"</span>: <span class="s">"lined"</span>,
+    <span class="k">"lineSpacing"</span>: <span class="n">8</span>,
+    <span class="k">"color"</span>: <span class="s">"#FBFAF6"</span>
+  },
+  <span class="k">"canvas"</span>: {
+    <span class="k">"width"</span>: <span class="s">"infinite"</span>,
+    <span class="k">"height"</span>: <span class="s">"infinite"</span>
+  },
+  <span class="k">"strokes"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"s1"</span>,
+      <span class="k">"tool"</span>: <span class="s">"pen"</span>,
+      <span class="k">"color"</span>: <span class="s">"#0F1729"</span>,
+      <span class="k">"width"</span>: <span class="n">2.0</span>,
+      <span class="k">"points"</span>: [
+        [<span class="n">120</span>,<span class="n">80</span>,<span class="n">0.5</span>,<span class="n">0</span>],
+        [<span class="n">122</span>,<span class="n">82</span>,<span class="n">0.6</span>,<span class="n">12</span>]
+        <span class="c">// [x, y, pressure, t-ms]</span>
+      ]
+    }
+  ],
+  <span class="k">"texts"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"t1"</span>,
+      <span class="k">"x"</span>: <span class="n">100</span>, <span class="k">"y"</span>: <span class="n">40</span>,
+      <span class="k">"content"</span>: <span class="s">"Erster Strahlensatz"</span>,
+      <span class="k">"fontSize"</span>: <span class="n">18</span>,
+      <span class="k">"fontFamily"</span>: <span class="s">"Inter"</span>
+    }
+  ],
+  <span class="k">"images"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"i1"</span>,
+      <span class="k">"x"</span>: <span class="n">200</span>, <span class="k">"y"</span>: <span class="n">120</span>,
+      <span class="k">"width"</span>: <span class="n">300</span>, <span class="k">"height"</span>: <span class="n">200</span>,
+      <span class="k">"src"</span>: <span class="s">"assets/dreieck.png"</span>,
+      <span class="k">"sha256"</span>: <span class="s">"def456..."</span>
+    }
+  ],
+  <span class="k">"shapes"</span>: [],
+  <span class="k">"pdfBackground"</span>: {
+    <span class="k">"src"</span>: <span class="s">"assets/aufgabenblatt.pdf"</span>,
+    <span class="k">"sha256"</span>: <span class="s">"abc123..."</span>,
+    <span class="k">"page"</span>: <span class="n">1</span>,
+    <span class="k">"scale"</span>: <span class="n">1.0</span>
+  },
+  <span class="k">"videoLinks"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"v1"</span>,
+      <span class="k">"x"</span>: <span class="n">100</span>, <span class="k">"y"</span>: <span class="n">600</span>,
+      <span class="k">"width"</span>: <span class="n">320</span>, <span class="k">"height"</span>: <span class="n">180</span>,
+      <span class="k">"url"</span>: <span class="s">"https://www.youtube.com/watch?v=..."</span>,
+      <span class="k">"thumbnail"</span>: <span class="s">"assets/yt-thumb-strahlensatz.jpg"</span>
+    }
+  ]
+}</pre>
+      </div>
+      <div class="col">
+        <h3>annotations/25-26.json</h3>
+<pre class="code-block">{
+  <span class="k">"schemaVersion"</span>: <span class="n">1</span>,
+  <span class="k">"type"</span>: <span class="s">"skribo-annotations"</span>,
+  <span class="k">"schoolYear"</span>: <span class="s">"25-26"</span>,
+  <span class="k">"context"</span>: {
+    <span class="k">"klasse"</span>: <span class="s">"9b"</span>,
+    <span class="k">"kohorte"</span>: <span class="s">"Abi-2030"</span>
+    <span class="c">// optional, bei mehreren parallelen Klassen</span>
+  },
+  <span class="k">"createdAt"</span>: <span class="s">"2025-09-12T10:23:11Z"</span>,
+  <span class="k">"updatedAt"</span>: <span class="s">"2026-04-29T11:15:42Z"</span>,
+  <span class="k">"strokes"</span>: [
+    {
+      <span class="k">"id"</span>: <span class="s">"a1"</span>,
+      <span class="k">"tool"</span>: <span class="s">"pen"</span>,
+      <span class="k">"color"</span>: <span class="s">"#B85C4A"</span>,
+      <span class="k">"width"</span>: <span class="n">1.8</span>,
+      <span class="k">"points"</span>: [
+        [<span class="n">150</span>,<span class="n">95</span>,<span class="n">0.4</span>,<span class="n">0</span>],
+        [<span class="n">158</span>,<span class="n">102</span>,<span class="n">0.7</span>,<span class="n">18</span>]
+      ],
+      <span class="k">"createdAt"</span>: <span class="s">"2025-09-12T10:23:11Z"</span>
+    },
+    {
+      <span class="k">"id"</span>: <span class="s">"a2"</span>,
+      <span class="k">"tool"</span>: <span class="s">"highlighter"</span>,
+      <span class="k">"color"</span>: <span class="s">"#E0A458"</span>,
+      <span class="k">"width"</span>: <span class="n">12</span>,
+      <span class="k">"opacity"</span>: <span class="n">0.4</span>,
+      <span class="k">"points"</span>: [
+        [<span class="n">98</span>,<span class="n">42</span>,<span class="n">1.0</span>,<span class="n">0</span>]
+      ]
+    }
+  ],
+  <span class="k">"texts"</span>: [],
+  <span class="k">"images"</span>: []
+}</pre>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:14px"><strong>Kernregel</strong>: <code>base.json</code> ist mutable (kannst du jederzeit verbessern). Annotations-Dateien sind „append-mostly" — beim normalen Unterricht nur Strokes anhängen. Frühere Schuljahre liegen daneben und können als Geist-Layer eingeblendet werden.</p>
+  </section>
+
+  <!-- 5. Layer-Modell -->
+  <section>
+    <div class="sec-num">05 / 06</div>
+    <h2 class="sec-title">Layer-Modell — wie das beim Rendern aussieht</h2>
+    <p class="sec-lead">Beim Öffnen einer Seite wird die Basis unten gezeichnet, darüber die Annotations-Schicht des aktiven Schuljahres. Optional kannst du frühere Schichten als Geist-Layer (transparent) einblenden, um zu sehen, was du letztes Mal an dieser Stelle geschrieben hast.</p>
+    <div class="layers">
+      <div class="layer-stack">
+        <div class="layer layer-base" style="z-index:1;transform:rotate(-1deg)">
+          <span class="l-name">base.json</span>
+          <span class="l-title">Vorbereitete Basis</span>
+          <span class="l-desc">Text, Diagramme, leere Rechenkästen, PDF-Aufgabenblatt — einmal vorbereitet, gilt für alle Jahrgänge. Schwarz auf Papierfarben.</span>
+        </div>
+        <div class="layer layer-25-26" style="z-index:2;transform:rotate(0.5deg)">
+          <span class="l-name">annotations/25-26.json</span>
+          <span class="l-title">Schuljahr 25/26 — aktive Schicht</span>
+          <span class="l-desc">Was am Board entstand, als du diese Seite mit Klasse 9b im September 2025 unterrichtet hast. Roststrich, Marker, Notizen.</span>
+        </div>
+      </div>
+      <div class="layer-legend">
+        <div><strong>Aktive Schicht</strong> — wo der Stift gerade landet, bestimmt durch globalen Schalter „Aktives Schuljahr" in den Settings.</div>
+        <div><strong>Geist-Layer-Toggle</strong> — pro Seite einblendbar; alte Schichten erscheinen mit reduzierter Opacity, nicht editierbar.</div>
+        <div><strong>Saubere Tafel pro Jahr</strong> — beim Wechsel auf 26-27 wird automatisch eine leere <code>26-27.json</code> angelegt; die alten bleiben nebeneinander.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. App-UI-Layout -->
+  <section>
+    <div class="sec-num">06 / 06</div>
+    <h2 class="sec-title">App-UI-Layout (OneNote-orientiert)</h2>
+    <p class="sec-lead">So setzt sich die Hierarchie in der App-Oberfläche um: links die Notizbücher (Sections), oben die Abschnitte (Tabs), rechts die Seiten (mit eingerückten Subpages). Der Canvas in der Mitte zeigt Basis + aktive Annotations-Schicht.</p>
+    <div class="app-mock">
+      <div class="app-titlebar">
+        <svg><use href="#mark-swing"/></svg>
+        <span class="ttl">Skribo</span>
+        <span class="right">Aktives Schuljahr · 25-26 · 9b</span>
+      </div>
+      <div class="app-tabs">
+        <div class="app-tab">00 Orga</div>
+        <div class="app-tab active">01 Ähnlichkeit und Strahlensätze</div>
+        <div class="app-tab">02 Quadratische Funktionen</div>
+        <div class="app-tab">03 Pythagoras</div>
+        <div class="app-tab">04 Trigonometrie</div>
+      </div>
+      <div class="app-body">
+        <div class="pane">
+          <div class="pane-title">Notizbücher</div>
+          <div class="list-item"><span class="dot" style="background:#1A8FE3"></span>Mathe 9</div>
+          <div class="list-item active"><span class="dot" style="background:#1A8FE3"></span>Mathe 9</div>
+          <div class="list-item"><span class="dot" style="background:#EF7D00"></span>Mathe 7</div>
+          <div class="list-item"><span class="dot" style="background:#9B59B6"></span>Modul 5 Stoch.</div>
+          <div class="list-item"><span class="dot" style="background:#06A77D"></span>Geo 7</div>
+          <div class="list-item"><span class="dot" style="background:#E0A458"></span>Geo S1-2</div>
+        </div>
+        <div class="canvas-pane">
+          <div class="ghost-toggle">Geist · 24-25</div>
+          <div class="year-toggle">Schicht · <span class="active-year">25-26</span></div>
+          <h4>Strahlensatz Beweis</h4>
+          <p>Erster Strahlensatz: Werden zwei sich schneidende Geraden von Parallelen geschnitten, …</p>
+          <p>Vorbereitete Skizze: Dreieck ABC mit Schnittpunkt S</p>
+          <p class="annotation">↳ am Board ergänzt: Beispielrechnung mit konkreten Werten</p>
+        </div>
+        <div class="pane">
+          <div class="pane-title">Seiten</div>
+          <div class="list-item">Übersicht Kapitel 01</div>
+          <div class="list-item active">Strahlensatz Beweis</div>
+          <div class="list-item list-sub">↳ Spezialfall</div>
+          <div class="list-item">Strahlensatz Anwendung</div>
+          <div class="list-item">Ähnliche Dreiecke</div>
+          <div class="list-item">Aufgaben gemischt</div>
+        </div>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:14px">Vertrautes OneNote-Layout, mit zwei Skribo-spezifischen Indikatoren oben rechts: <strong>Schicht-Anzeige</strong> (welches Schuljahr aktiv ist) und <strong>Geist-Layer-Toggle</strong> (alte Schichten transparent einblenden). Theme- &amp; Hamburger-Menü kommen aus der bestehenden v1-Spec.</p>
+  </section>
+
+  <!-- + Frozen-Base 2.0 -->
+  <section>
+    <div class="sec-num">+ Frozen-Base</div>
+    <h2 class="sec-title">Frozen-Base 2.0 — Asset-Versionierung gegen Drift</h2>
+    <p class="sec-lead">Wenn du <code>base.json</code> verbesserst oder das Hintergrund-PDF austauschst (Word neu exportiert), driften alte Annotations-Schichten weg — Striche kleben an Stellen, die im neuen Layout nicht mehr passen. Lösung: <strong>Snapshots</strong> der Basis und der referenzierten Assets, automatisch beim Wechsel ausgelöst.</p>
+    <div class="sync-grid">
+      <div class="sync-card">
+        <div class="step">A · Schuljahres-Wechsel</div>
+        <h4>Lazy Base-Snapshot</h4>
+        <p>Beim Umschalten von 25-26 → 26-27 wird <code>base.json</code> automatisch nach <code>base.snapshots/25-26.json</code> kopiert. Alte Annotations-Schicht ist gegen alle künftigen Basis-Änderungen abgesichert.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">B · Asset-Austausch</div>
+        <h4>Copy-on-Write</h4>
+        <p>Du tauschst <code>aufgabenblatt.pdf</code> (neue Word-Version, anderer Hash). Skribo erkennt den Hash-Mismatch, verschiebt die alte PDF nach <code>.skribo-archive/aufgabenblatt-sha256-abc123.pdf</code>, biegt die Snapshot-Referenzen darauf um.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">C · Render</div>
+        <h4>Konsistente Sicht</h4>
+        <p>Aktive Schicht: live <code>base.json</code> + live Assets. Geist-Layer / alte Schicht: <code>base.snapshots/&lt;jahr&gt;.json</code> + archivierte Assets. Strokes liegen immer auf dem Hintergrund, der zur Annotations-Zeit galt.</p>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:14px"><strong>Storage-Bedarf realistisch</strong>: 500 Seiten × ~95 KB Layer-Daten + ~750 MB PDF-Archive über 5 Jahre intensiver Nutzung = unter 1 GB Gesamt — auch in 1-TB-OneDrive vernachlässigbar. Recherche-Hintergrund: <strong>Hypothesis Fuzzy Anchoring</strong>, <strong>W3C Web Annotation Model</strong>, <strong>OneNote Object-bound Ink</strong>. Skribo wählt für v1 den robustesten Ansatz (Snapshot+Archive), Object-Anchor für PDFs/Bilder ist v2-Erweiterung.</p>
+  </section>
+
+  <!-- + Storage-Backends -->
+  <section>
+    <div class="sec-num">+ Storage</div>
+    <h2 class="sec-title">Storage-Backends — WebDAV &amp; OneDrive</h2>
+    <p class="sec-lead">Skribo spricht <strong>nie direkt</strong> mit WebDAV oder OneDrive. Sync-Logik geht immer gegen ein Storage-Interface (<code>list / read / write / delete / etag</code>) — konkrete Backends als austauschbare Plugins. Datenmodell ist storage-agnostisch: Verzeichnisstruktur funktioniert auf jedem Filesystem-artigen Backend identisch.</p>
+    <div class="sync-grid">
+      <div class="sync-card">
+        <div class="step">v1 · WebDAV (NAS)</div>
+        <h4>Synology DS225+</h4>
+        <p>Eigene Hardware, Datenhoheit, fertig konfiguriert (`skribo.bgg-home.de`). Basic Auth, ETags. Standard-Backend für den Skribo-User selbst, läuft seit Phase 2 grün.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">v2 · OneDrive (Schule)</div>
+        <h4>Microsoft 365 Education</h4>
+        <p>Kein Setup pro Lehrer — jeder hat 1 TB OneDrive ab Schul-Account. Microsoft Graph API, OAuth2 mit MSAL-Bibliothek, App-Registrierung „Multi-Tenant" einmalig bei Microsoft. Adoption-Story für Kollegen.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">v3+ · Optional</div>
+        <h4>Synology Drive / Nextcloud / …</h4>
+        <p>Weitere Backends als Plugins ohne Datenmodell-Änderung. Skribo bleibt offen, der Lehrer kann pro Notizbuch frei wählen, wo es liegt.</p>
+      </div>
+    </div>
+    <p class="sec-lead" style="margin-top:14px"><strong>Migration zwischen Backends</strong>: ist Datei-Migration, kein Datenmodell-Change — derselbe Verzeichnisbaum kann vom NAS aufs OneDrive gespiegelt werden, Skribo-Settings auf neuen Sync-Root umstellen, fertig.</p>
+  </section>
+
+  <!-- + Druck-Workflow -->
+  <section>
+    <div class="sec-num">+ Druck</div>
+    <h2 class="sec-title">Druck-Workflow — Original-PDF und Skribo-Export</h2>
+    <p class="sec-lead">OneNote-Pendant: oben am Seitenanfang ein PDF-Icon → Klick → druckbare Original-PDF (DIN A4). In Skribo zwei Wege, je nachdem ob du das Original oder dein Tafelbild willst:</p>
+    <div class="sync-grid">
+      <div class="sync-card">
+        <div class="step">Weg 1</div>
+        <h4>Original-PDF öffnen</h4>
+        <p>Toolbar-Button <em>„Original-PDF öffnen"</em>, wenn die Seite einen <code>pdf-background</code> referenziert. Klick → öffnet <code>assets/aufgabenblatt.pdf</code> im System-PDF-Viewer (Pult / Laptop) → drucken in DIN A4 → an Schüler verteilen. Identischer Workflow zu OneNote.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">Weg 2</div>
+        <h4>Skribo-Seite als PDF</h4>
+        <p>Du hast am Board annotiert und willst das Ergebnis verteilen. Toolbar-Button <em>„Als PDF exportieren"</em> → generiert PDF aus Hintergrund + aktueller Annotations-Schicht. Optional: ohne Annotationen für Schüler, mit für eigenes Archiv. v1-Scope.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">Bonus</div>
+        <h4>Echte Filesystem-Dateien</h4>
+        <p>Anders als OneNote (alles im <code>.one</code>-Container): Skribos PDFs sind echte Filesystem-Dateien auf NAS / OneDrive. Auch außerhalb der App zugänglich — über NAS-Webinterface, OneDrive-Web, Filemanager. Du bist nicht in der App eingesperrt.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Sync-Strategie -->
+  <section>
+    <div class="sec-num">+ Sync</div>
+    <h2 class="sec-title">Sync-Strategie zwischen Pult, Board &amp; Backend</h2>
+    <p class="sec-lead">Storage-agnostisch, gleicher Algorithmus für alle Backends (WebDAV / OneDrive / …). ETag-basierte Konflikterkennung, Annotationen als „append-mostly", Basis last-write-wins mit Backup. Drei Phasen pro Sync-Lauf:</p>
+    <div class="sync-grid">
+      <div class="sync-card">
+        <div class="step">1 · Pull</div>
+        <h4>Backend holt</h4>
+        <p>Beim Öffnen eines Notizbuchs lädt Skribo nur den aktuellen Pfad (`Mathe9/01 Ähnlichkeit/`), prüft pro Datei den ETag, zieht nur Geändertes. Lokaler Cache bleibt offline lesbar. OneDrive nutzt zusätzlich Delta-Queries (effizienter als volles Listing).</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">2 · Edit</div>
+        <h4>Lokales Schreiben</h4>
+        <p>Striche werden in den lokalen Cache geschrieben (sofortige Reaktion). Hintergrund-Worker batched alle paar Sekunden zum Backend — bei Verbindungsverlust queue-d die App, syncs später nach.</p>
+      </div>
+      <div class="sync-card">
+        <div class="step">3 · Push</div>
+        <h4>Konfliktauflösung</h4>
+        <p>Annotationen: Striche werden mit ID gemerged (zwei Geräte können parallel schreiben, beide Striche bleiben). Basis: ETag-Mismatch → Backup als <code>base.YYYYMMDD-HHMM.json</code>, neuer Wert gewinnt, alte Version wiederherstellbar.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Skribo · Datenformat-Spec · <code>mockups/skribo-data-format.html</code></span>
+    <span>Phase 1 · Stand 2026-04-29</span>
+  </footer>
+
+</div>
+</body>
+</html>

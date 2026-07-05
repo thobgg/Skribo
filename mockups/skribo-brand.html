@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Skribo · Bild- und Schriftmarke (Mockup)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0F1729;
+  --ink-soft:#1A2237;
+  --paper:#FBFAF6;
+  --paper-warm:#F4EFE5;
+  --accent-rust:#B85C4A;
+  --accent-teal:#06A77D;
+  --accent-amber:#E0A458;
+  --line:rgba(15,23,41,0.12);
+  --muted:#6B7280;
+}
+*{box-sizing:border-box}
+html,body{margin:0;font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--paper);color:var(--ink);font-feature-settings:"ss01","cv11"}
+.wrap{max-width:1180px;margin:0 auto;padding:70px 40px 80px}
+
+/* Hero */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:60px 40px 80px;border:1px solid var(--line);border-radius:18px;background:#fff;margin-bottom:48px;box-shadow:0 1px 3px rgba(0,0,0,0.04),0 18px 40px rgba(0,0,0,0.06)}
+.hero-mark{margin-bottom:32px}
+.hero-mark svg{width:120px;height:120px}
+.hero-wordmark{font-family:'Space Grotesk',Inter,sans-serif;font-size:78px;font-weight:600;letter-spacing:-0.04em;line-height:1;color:var(--ink);margin:0}
+.hero-tag{font-size:15px;color:var(--muted);margin:14px 0 0;letter-spacing:0.01em;font-weight:400;max-width:480px;line-height:1.5}
+.hero-meta{display:flex;gap:18px;margin-top:28px;font-size:12px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase}
+
+/* Section header */
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:0.14em;color:var(--muted);font-weight:600;margin:60px 0 18px 4px}
+h2.sec span{color:var(--ink);font-weight:600}
+.sec-lead{font-size:14px;color:var(--muted);max-width:720px;margin:0 0 24px 4px;line-height:1.6}
+
+/* Bildmarken-Grid */
+.marks{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.mark-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px 24px 22px;display:flex;flex-direction:column;align-items:center;text-align:center}
+.mark-svg{width:100px;height:100px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;color:var(--ink)}
+.mark-svg svg{width:100%;height:100%}
+.mark-card h3{margin:0 0 6px;font-size:15px;font-weight:600;letter-spacing:-0.01em}
+.mark-card p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5}
+.mark-key{display:inline-block;font-family:'IBM Plex Sans',monospace;font-size:10.5px;letter-spacing:0.08em;color:var(--accent-rust);font-weight:600;margin-bottom:10px;text-transform:uppercase}
+
+/* Schriftmarken */
+.fonts{display:grid;grid-template-columns:1fr;gap:10px}
+.font-row{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 28px;display:flex;align-items:baseline;justify-content:space-between;gap:24px}
+.font-name{font-size:11px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;font-weight:600;font-family:'IBM Plex Sans',monospace;flex-shrink:0;width:200px}
+.font-sample{font-size:64px;line-height:1;letter-spacing:-0.04em;font-weight:600;color:var(--ink)}
+.fs-inter{font-family:'Inter',sans-serif}
+.fs-space{font-family:'Space Grotesk',sans-serif}
+.fs-plex{font-family:'IBM Plex Sans',sans-serif}
+.fs-manrope{font-family:'Manrope',sans-serif;font-weight:700}
+.fs-crimson{font-family:'Crimson Pro',serif;font-weight:600}
+.fs-fraunces{font-family:'Fraunces',serif;font-weight:600;font-style:italic}
+
+/* Combo */
+.combos{display:grid;grid-template-columns:repeat(2,1fr);gap:20px}
+.combo{background:#fff;border:1px solid var(--line);border-radius:14px;padding:36px 32px;display:flex;align-items:center;gap:24px}
+.combo .csvg{width:64px;height:64px;flex-shrink:0;color:var(--ink)}
+.combo .ctxt{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:48px;letter-spacing:-0.04em;line-height:1}
+.combo .clbl{font-size:11px;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-top:6px;font-family:'IBM Plex Sans',monospace}
+
+/* Light / Dark */
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.duo-tile{border-radius:14px;padding:60px 40px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;border:1px solid var(--line)}
+.duo-tile.light{background:#fff;color:var(--ink)}
+.duo-tile.warm{background:var(--paper-warm);color:var(--ink)}
+.duo-tile.dark{background:var(--ink);color:var(--paper)}
+.duo-tile.deep{background:#000;color:#fff}
+.duo-tile svg{width:72px;height:72px}
+.duo-word{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:48px;letter-spacing:-0.04em;line-height:1}
+.duo-cap{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;opacity:0.6;font-family:'IBM Plex Sans',monospace}
+
+/* Anwendungen */
+.apps{display:grid;grid-template-columns:auto auto auto 1fr;gap:18px;align-items:stretch}
+.app-tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-width:160px}
+.app-cap{font-size:10.5px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Sans',monospace;font-weight:600}
+.icon-large{width:104px;height:104px;border-radius:24px;background:linear-gradient(135deg,var(--ink) 0%,var(--ink-soft) 100%);display:flex;align-items:center;justify-content:center;color:var(--paper);box-shadow:0 8px 22px rgba(15,23,41,0.25)}
+.icon-large svg{width:60%;height:60%}
+.icon-small{width:32px;height:32px;border-radius:7px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:var(--paper)}
+.icon-small svg{width:60%;height:60%}
+.icon-tiny{width:16px;height:16px;border-radius:4px;background:var(--ink);display:flex;align-items:center;justify-content:center;color:var(--paper)}
+.icon-tiny svg{width:65%;height:65%}
+.browser-mock{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0;overflow:hidden;display:flex;flex-direction:column}
+.browser-bar{background:#F0EEE8;padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.browser-bar .dot{width:11px;height:11px;border-radius:50%;background:#D4D2CC}
+.browser-bar .url{margin-left:14px;background:#fff;padding:4px 12px;border-radius:6px;font-size:11px;color:var(--muted);font-family:'IBM Plex Sans',monospace;flex:1;border:1px solid var(--line)}
+.browser-body{padding:24px 28px;flex:1;display:flex;flex-direction:column;gap:18px}
+.browser-header{display:flex;align-items:center;gap:14px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.browser-header svg{width:28px;height:28px;color:var(--ink)}
+.browser-header .h{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:22px;letter-spacing:-0.02em}
+.browser-header .nav{margin-left:auto;display:flex;gap:18px;font-size:12.5px;color:var(--muted)}
+.browser-content{display:flex;flex-direction:column;gap:8px}
+.browser-content .l{height:8px;background:var(--paper-warm);border-radius:4px}
+.browser-content .l.short{width:60%}
+.browser-content .l.tiny{width:30%;height:6px;background:var(--line)}
+
+/* Farben */
+.palettes{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.palette{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.palette h4{margin:0 0 4px;font-size:14px;font-weight:600;letter-spacing:-0.01em}
+.palette p{margin:0;font-size:12px;color:var(--muted);line-height:1.5}
+.swatches{display:flex;gap:8px;margin-top:8px}
+.sw{flex:1;height:54px;border-radius:8px;display:flex;align-items:flex-end;justify-content:flex-start;padding:8px;font-size:9.5px;font-family:'IBM Plex Sans',monospace;letter-spacing:0.06em;font-weight:500;color:var(--paper)}
+.sw.light{color:var(--ink)}
+
+footer{margin-top:80px;padding-top:24px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;justify-content:space-between;letter-spacing:0.04em}
+footer code{background:rgba(15,23,41,0.06);padding:2px 6px;border-radius:4px;font-size:11px}
+
+@media (max-width:880px){
+  .marks,.combos,.duo,.palettes{grid-template-columns:1fr 1fr}
+  .apps{grid-template-columns:1fr 1fr}
+  .browser-mock{grid-column:span 2}
+  .font-row{flex-direction:column;align-items:flex-start;gap:8px}
+  .font-name{width:auto}
+  .font-sample{font-size:48px}
+  .hero-wordmark{font-size:54px}
+}
+</style>
+</head>
+<body>
+
+<!-- Reusable SVG defs (referenced via <use>) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Konzept 1: Schwung-S — kalligraphischer Strich -->
+    <symbol id="mark-swing" viewBox="0 0 100 100">
+      <path d="M 78 24 C 78 11, 32 11, 32 28 C 32 44, 78 44, 78 62 C 78 80, 26 84, 26 70"
+        stroke="currentColor" stroke-width="13" stroke-linecap="round" fill="none"/>
+    </symbol>
+    <!-- Konzept 2: Bridge-S — S mit zwei Punkten an den Enden (Sync-Anspielung) -->
+    <symbol id="mark-bridge" viewBox="0 0 100 100">
+      <path d="M 22 28 C 60 28, 38 50, 50 50 C 62 50, 40 72, 78 72"
+        stroke="currentColor" stroke-width="9" stroke-linecap="round" fill="none"/>
+      <circle cx="22" cy="28" r="6.5" fill="currentColor"/>
+      <circle cx="78" cy="72" r="6.5" fill="currentColor"/>
+    </symbol>
+    <!-- Konzept 3: K-Stift — Großbuchstabe K mit Stift-Diagonale -->
+    <symbol id="mark-kpen" viewBox="0 0 100 100">
+      <line x1="26" y1="14" x2="26" y2="86" stroke="currentColor" stroke-width="11" stroke-linecap="round"/>
+      <line x1="26" y1="50" x2="74" y2="22" stroke="currentColor" stroke-width="11" stroke-linecap="round"/>
+      <!-- Stift-Schaft mit Spitze nach unten-rechts -->
+      <line x1="26" y1="50" x2="68" y2="78" stroke="currentColor" stroke-width="11" stroke-linecap="round"/>
+      <polygon points="68,78 84,86 80,80 76,72" fill="currentColor"/>
+    </symbol>
+    <!-- Konzept 4: Tinte — Strich mit Tropfen (S liegend, fast Tilde-artig) -->
+    <symbol id="mark-ink" viewBox="0 0 100 100">
+      <path d="M 18 58 C 28 38, 44 38, 50 50 C 56 62, 72 62, 82 42"
+        stroke="currentColor" stroke-width="11" stroke-linecap="round" fill="none"/>
+      <!-- Tropfen am Endpunkt -->
+      <path d="M 82 42 C 82 36, 86 32, 88 32 C 90 32, 94 36, 94 42 C 94 48, 90 52, 88 52 C 86 52, 82 48, 82 42 Z" fill="currentColor"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-mark">
+      <svg><use href="#mark-swing"/></svg>
+    </div>
+    <h1 class="hero-wordmark">Skribo</h1>
+    <p class="hero-tag">Die offene Tafel zwischen Pult und Klassenzimmer.</p>
+    <div class="hero-meta">
+      <span>Bild- &amp; Schriftmarke</span>
+      <span>Mockup · 2026-04-29</span>
+    </div>
+  </section>
+
+  <!-- 1. Bildmarken -->
+  <h2 class="sec"><span>1.</span> Bildmarken — vier Konzepte zur Auswahl</h2>
+  <p class="sec-lead">Jedes Konzept ist ein Vorschlag in der Familie der OSS-Werkzeug-Marken (Scribus / Inkscape / Krita): einfaches Zeichen, monochrom-tauglich, gut bei 16 px wie bei 1024 px lesbar. Wähle das Konzept, dann polieren wir die finale Form.</p>
+  <div class="marks">
+    <div class="mark-card">
+      <div class="mark-svg"><svg><use href="#mark-swing"/></svg></div>
+      <span class="mark-key">Konzept 1</span>
+      <h3>Schwung</h3>
+      <p>Ein einzelner kalligraphischer Strich formt das S. Direkter Bezug zur Stifteingabe. Klassisch, edel, sehr ikonisch.</p>
+    </div>
+    <div class="mark-card">
+      <div class="mark-svg"><svg><use href="#mark-bridge"/></svg></div>
+      <span class="mark-key">Konzept 2</span>
+      <h3>Brücke</h3>
+      <p>S-Strich mit zwei Punkten an den Enden — zwei Geräte, ein Pfad dazwischen. Subtiler Sync-Subtext, ohne den Namen umzubiegen.</p>
+    </div>
+    <div class="mark-card">
+      <div class="mark-svg"><svg><use href="#mark-kpen"/></svg></div>
+      <span class="mark-key">Konzept 3</span>
+      <h3>K-Stift</h3>
+      <p>Anker beim K (Skribo / Skript), die abgehende Diagonale endet als Stiftspitze. Spielerischer, verbindet Buchstabe und Werkzeug.</p>
+    </div>
+    <div class="mark-card">
+      <div class="mark-svg"><svg><use href="#mark-ink"/></svg></div>
+      <span class="mark-key">Konzept 4</span>
+      <h3>Tinte</h3>
+      <p>Liegender Schreibstrich mit Tropfen am Ende. Fließender, eher Verb als Substantiv. Geringere Buchstaben-Bindung — abstrakter Marken-Look.</p>
+    </div>
+  </div>
+
+  <!-- 2. Schriftmarken -->
+  <h2 class="sec"><span>2.</span> Schriftmarke — wie soll „Skribo" aussehen?</h2>
+  <p class="sec-lead">Sechs Schnitte in unterschiedlicher Tonalität. Inter / Space Grotesk / IBM Plex sind alle Open-Source-Schriften und passen zur FOSS-Tradition. Crimson und Fraunces sind Serifen-Optionen, falls du den klassisch-akademischen Touch willst.</p>
+  <div class="fonts">
+    <div class="font-row">
+      <div class="font-name">Inter · 600</div>
+      <div class="font-sample fs-inter">Skribo</div>
+    </div>
+    <div class="font-row">
+      <div class="font-name">Space Grotesk · 600</div>
+      <div class="font-sample fs-space">Skribo</div>
+    </div>
+    <div class="font-row">
+      <div class="font-name">IBM Plex Sans · 600</div>
+      <div class="font-sample fs-plex">Skribo</div>
+    </div>
+    <div class="font-row">
+      <div class="font-name">Manrope · 700</div>
+      <div class="font-sample fs-manrope">Skribo</div>
+    </div>
+    <div class="font-row">
+      <div class="font-name">Crimson Pro · 600</div>
+      <div class="font-sample fs-crimson">Skribo</div>
+    </div>
+    <div class="font-row">
+      <div class="font-name">Fraunces · 600 Italic</div>
+      <div class="font-sample fs-fraunces">Skribo</div>
+    </div>
+  </div>
+
+  <!-- 3. Kombinationen -->
+  <h2 class="sec"><span>3.</span> Bild- &amp; Schriftmarke kombiniert</h2>
+  <p class="sec-lead">Mein Favorit-Setup: Schwung-Konzept + Space Grotesk. Klare Hierarchie zwischen Bildmarke und Wort, beide mit weichem Mut. Die anderen drei Kacheln sind Vergleichs-Setups, damit du Unterschiede siehst.</p>
+  <div class="combos">
+    <div class="combo">
+      <div class="csvg"><svg><use href="#mark-swing"/></svg></div>
+      <div>
+        <div class="ctxt fs-space">Skribo</div>
+        <div class="clbl">Schwung · Space Grotesk</div>
+      </div>
+    </div>
+    <div class="combo">
+      <div class="csvg"><svg><use href="#mark-bridge"/></svg></div>
+      <div>
+        <div class="ctxt fs-inter">Skribo</div>
+        <div class="clbl">Brücke · Inter</div>
+      </div>
+    </div>
+    <div class="combo">
+      <div class="csvg"><svg><use href="#mark-kpen"/></svg></div>
+      <div>
+        <div class="ctxt fs-manrope">Skribo</div>
+        <div class="clbl">K-Stift · Manrope</div>
+      </div>
+    </div>
+    <div class="combo">
+      <div class="csvg"><svg><use href="#mark-ink"/></svg></div>
+      <div>
+        <div class="ctxt fs-fraunces">Skribo</div>
+        <div class="clbl">Tinte · Fraunces Italic</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Hell / Dunkel -->
+  <h2 class="sec"><span>4.</span> Hell- und Dunkel-Variationen</h2>
+  <p class="sec-lead">Die Marke muss auf weißem Papier-Hintergrund, auf warmem Off-White und auf tiefem Tinten-Hintergrund (Dark Mode der App) gleich gut lesbar sein. Hier mit dem Schwung-Konzept getestet.</p>
+  <div class="duo">
+    <div class="duo-tile light">
+      <svg><use href="#mark-swing"/></svg>
+      <div class="duo-word fs-space">Skribo</div>
+      <div class="duo-cap">Light · Paper #FBFAF6</div>
+    </div>
+    <div class="duo-tile warm">
+      <svg><use href="#mark-swing"/></svg>
+      <div class="duo-word fs-space">Skribo</div>
+      <div class="duo-cap">Warm · Paper #F4EFE5</div>
+    </div>
+    <div class="duo-tile dark">
+      <svg><use href="#mark-swing"/></svg>
+      <div class="duo-word fs-space">Skribo</div>
+      <div class="duo-cap">Ink · #0F1729</div>
+    </div>
+    <div class="duo-tile deep">
+      <svg><use href="#mark-swing"/></svg>
+      <div class="duo-word fs-space">Skribo</div>
+      <div class="duo-cap">Deep · #000</div>
+    </div>
+  </div>
+
+  <!-- 5. Anwendungen -->
+  <h2 class="sec"><span>5.</span> Anwendungs-Beispiele</h2>
+  <p class="sec-lead">Wie sich die Marke in den drei Hauptkontexten verhält: App-Icon (Launcher), Header in Browser/Desktop, Favicon. Auswahl des Konzepts an dieser Stelle eingefroren auf Schwung — austauschbar.</p>
+  <div class="apps">
+    <div class="app-tile">
+      <div class="icon-large">
+        <svg><use href="#mark-swing"/></svg>
+      </div>
+      <div class="app-cap">App-Icon · 1024 px</div>
+    </div>
+    <div class="app-tile">
+      <div class="icon-small">
+        <svg><use href="#mark-swing"/></svg>
+      </div>
+      <div class="app-cap">Toolbar · 32 px</div>
+    </div>
+    <div class="app-tile">
+      <div class="icon-tiny">
+        <svg><use href="#mark-swing"/></svg>
+      </div>
+      <div class="app-cap">Favicon · 16 px</div>
+    </div>
+    <div class="browser-mock">
+      <div class="browser-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <div class="url">skribo.app/willkommen</div>
+      </div>
+      <div class="browser-body">
+        <div class="browser-header">
+          <svg><use href="#mark-swing"/></svg>
+          <span class="h fs-space">Skribo</span>
+          <div class="nav"><span>Pult</span><span>Tafel</span><span>Workspace</span></div>
+        </div>
+        <div class="browser-content">
+          <div class="l"></div>
+          <div class="l short"></div>
+          <div class="l tiny"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Farben -->
+  <h2 class="sec"><span>6.</span> Farb-Paletten — drei Vorschläge</h2>
+  <p class="sec-lead">Skribo passt zu monochromer Tinten-Ästhetik. Eine Akzentfarbe reicht. Drei Charakter-Paletten zur Auswahl — jeweils Tinte plus eine warme oder kühle Pointe.</p>
+  <div class="palettes">
+    <div class="palette">
+      <h4>Tinte &amp; Rost</h4>
+      <p>Klassisch, warm, edel. Erinnert an Tinte und Sienna-Pigment. Akzentlinien für Highlights, Buttons.</p>
+      <div class="swatches">
+        <div class="sw" style="background:#0F1729">#0F1729</div>
+        <div class="sw" style="background:#B85C4A">#B85C4A</div>
+        <div class="sw light" style="background:#FBFAF6">#FBFAF6</div>
+      </div>
+    </div>
+    <div class="palette">
+      <h4>Tinte &amp; Türkis</h4>
+      <p>Kühler, FOSS-Software-Vibe (vgl. Penpot, Element). Akzent für interaktive Zustände, Sync-Indikator.</p>
+      <div class="swatches">
+        <div class="sw" style="background:#0F1729">#0F1729</div>
+        <div class="sw" style="background:#06A77D">#06A77D</div>
+        <div class="sw light" style="background:#FBFAF6">#FBFAF6</div>
+      </div>
+    </div>
+    <div class="palette">
+      <h4>Tinte &amp; Bernstein</h4>
+      <p>Wärme einer Schreibtischlampe. Akzent für Hervorhebungen, Marker-Werkzeug, Markierungen am Board.</p>
+      <div class="swatches">
+        <div class="sw" style="background:#0F1729">#0F1729</div>
+        <div class="sw" style="background:#E0A458">#E0A458</div>
+        <div class="sw light" style="background:#F4EFE5">#F4EFE5</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>Skribo · Brand-Mockup · <code>mockups/skribo-brand.html</code></span>
+    <span>Stand 2026-04-29</span>
+  </footer>
+
+</div>
+</body>
+</html>

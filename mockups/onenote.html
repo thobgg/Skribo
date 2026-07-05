@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inktest · v1-Spec (OneNote-Layout)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3f2f1;
+  --surface:#ffffff;
+  --ink:#201F1E;
+  --muted:#605E5C;
+  --border:#E1DFDD;
+  --border-soft:#EDEBE9;
+  --accent:#7719AA;
+  --accent-soft:rgba(119,25,170,0.08);
+  --accent-deep:#512B68;
+  --lined:#D8E1EE;
+  --lined-yellow:#ECE5C9;
+  --chip-math:#4A90E2;
+  --chip-hist:#E0A82E;
+  --chip-bio:#D13438;
+  --chip-chem:#107C10;
+  --chip-purple:#805AD5;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,'Segoe UI',system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.back{position:fixed;top:18px;left:18px;font-size:13px;color:var(--muted);text-decoration:none;background:#fff;padding:7px 14px;border-radius:20px;border:1px solid var(--border);z-index:100;font-weight:500}
+.back:hover{color:var(--accent)}
+.shell{max-width:1500px;margin:0 auto;padding:70px 40px 100px}
+.hd{margin-bottom:50px}
+.hd .badge{display:inline-block;background:var(--accent-soft);color:var(--accent);padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;letter-spacing:0.04em;margin-bottom:12px}
+.hd h1{margin:0 0 8px;font-size:32px;letter-spacing:-0.02em;font-weight:600}
+.hd p{margin:0;color:var(--muted);max-width:720px;line-height:1.55}
+.frame{margin-bottom:70px}
+.frame-label{color:var(--muted);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;margin-bottom:12px;padding-left:4px}
+.screen{background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.04),0 22px 60px rgba(0,0,0,0.1);aspect-ratio:16/9;display:flex;flex-direction:column;position:relative}
+
+/* ==== Title bar ==== */
+.titlebar{display:flex;align-items:center;gap:10px;padding:0 16px;height:42px;background:linear-gradient(to bottom,#8A2BBF,#7719AA);color:#fff;font-size:13px;flex-shrink:0}
+.tb-hamburger{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+.tb-hamburger:hover{background:rgba(255,255,255,0.16)}
+.tb-title{font-weight:600;letter-spacing:0.2px;margin-left:2px}
+.tb-sub{opacity:0.8;font-size:12px}
+.tb-spacer{flex:1}
+.tb-sync{display:flex;align-items:center;gap:6px;font-size:11px;opacity:0.9;background:rgba(255,255,255,0.1);padding:5px 10px;border-radius:12px}
+.tb-sync-dot{width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 0 2px rgba(74,222,128,0.25)}
+.tb-search{background:rgba(255,255,255,0.16);border-radius:4px;padding:5px 14px;font-size:12px;min-width:200px;margin-left:10px}
+.tb-icon{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;opacity:0.9;cursor:pointer}
+.tb-icon:hover{background:rgba(255,255,255,0.14)}
+
+/* ==== Tabs ==== */
+.tabs{display:flex;background:#FAFAFA;border-bottom:1px solid var(--border);padding:0 12px;flex-shrink:0;align-items:flex-end}
+.tab{padding:10px 16px;font-size:12px;color:var(--muted);border-bottom:2px solid transparent;cursor:pointer;display:flex;align-items:center;gap:6px}
+.tab.active{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tab-dot{width:8px;height:8px;border-radius:50%}
+.tab-add{padding:10px 14px;font-size:12px;color:var(--accent);cursor:pointer;font-weight:500}
+
+/* ==== Toolbar ==== */
+.toolbar{display:flex;align-items:center;gap:3px;padding:8px 12px;background:#fff;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.tgrp{display:flex;align-items:center;gap:2px}
+.tsep{width:1px;align-self:stretch;background:var(--border);margin:4px 8px}
+.tool{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:4px;cursor:pointer;font-size:12px;color:var(--ink);white-space:nowrap}
+.tool:hover{background:var(--bg)}
+.tool.primary{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.tool svg{width:14px;height:14px}
+.tool-icon{font-size:14px}
+.chips{display:flex;gap:5px;align-items:center;padding:0 4px}
+.chip{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);cursor:pointer;transition:transform 0.15s;position:relative}
+.chip:hover{transform:scale(1.15)}
+.chip.black{background:#000}
+.chip.blue{background:#0078D4}
+.chip.red{background:#D13438}
+.chip.green{background:#107C10}
+.chip.orange{background:#F48120}
+.chip.purple{background:#805AD5}
+.chip.cyan{background:#0EA5E9}
+.chip.active{outline:2px solid var(--accent);outline-offset:2px}
+.chip.fav::after{content:'★';position:absolute;top:-6px;right:-4px;color:#E0A82E;font-size:9px}
+.width-presets{display:flex;gap:3px;align-items:center}
+.wp{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid transparent}
+.wp:hover{border-color:var(--border)}
+.wp.active{background:var(--accent-soft);color:var(--accent)}
+.wp-dot{border-radius:50%;background:currentColor}
+.wp.thin .wp-dot{width:4px;height:4px}
+.wp.med .wp-dot{width:7px;height:7px}
+.wp.thick .wp-dot{width:11px;height:11px}
+.wp-slider{width:70px;height:3px;background:var(--border);border-radius:2px;position:relative;margin:0 6px}
+.wp-slider::after{content:'';position:absolute;top:-5px;left:40%;width:13px;height:13px;background:var(--accent);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.2)}
+
+/* ==== Body grid ==== */
+.body{flex:1;display:grid;grid-template-columns:180px 180px 1fr;min-height:0}
+.sections{background:#FAFAFA;border-right:1px solid var(--border);padding:8px 0;overflow:hidden;font-size:13px}
+.sec-hdr{padding:6px 14px;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600;margin-bottom:2px;display:flex;align-items:center;justify-content:space-between}
+.sec-hdr .add{cursor:pointer;font-size:14px;opacity:0.7}
+.sec-hdr .add:hover{opacity:1;color:var(--accent)}
+.sec{display:flex;align-items:center;gap:10px;padding:7px 14px;cursor:pointer;color:var(--ink);position:relative}
+.sec:hover{background:#fff}
+.sec.active{background:#fff;font-weight:600}
+.sec.active::before{content:'';position:absolute;left:0;top:4px;bottom:4px;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.sec-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+.pages{background:#FDFDFD;border-right:1px solid var(--border);padding:8px 0;overflow:hidden;font-size:12px}
+.page{padding:6px 14px 6px 14px;cursor:pointer;color:var(--muted);border-left:3px solid transparent;line-height:1.3;display:flex;gap:8px;align-items:flex-start}
+.page .drag{color:#bbb;font-size:11px;line-height:1.5;user-select:none}
+.page .pcol{flex:1;min-width:0}
+.page .ptitle{color:var(--ink);font-size:12px}
+.page .pdate{color:var(--muted);font-size:10px;margin-top:2px}
+.page.active{background:#fff;border-left-color:var(--accent)}
+.page.active .ptitle{font-weight:600}
+.page:hover{background:#fff}
+.page.sub{padding-left:30px}
+.page.sub .ptitle{font-size:11px}
+.page .pdf-icon{font-size:9px;background:#D13438;color:#fff;padding:1px 4px;border-radius:2px;margin-left:4px;font-weight:600;letter-spacing:0.05em;vertical-align:1px}
+.page-add{padding:8px 14px;color:var(--accent);font-size:12px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;margin-top:4px;border-top:1px solid var(--border-soft)}
+
+/* ==== Canvas ==== */
+.canvas{background:#fff;position:relative;overflow:hidden}
+.canvas.lined{background-image:repeating-linear-gradient(var(--lined) 0 1px,transparent 1px 32px);background-size:100% 32px;background-position:0 98px}
+.canvas.grid{background-image:repeating-linear-gradient(var(--lined) 0 1px,transparent 1px 28px),repeating-linear-gradient(90deg,var(--lined) 0 1px,transparent 1px 28px);background-size:28px 28px;background-position:0 98px}
+.pg-title{position:absolute;top:30px;left:46px;right:46px;font-family:Caveat;font-size:38px;line-height:1;color:#1a1a1a}
+.pg-date{position:absolute;top:76px;left:46px;color:var(--muted);font-size:11px}
+.pg-tools-meta{position:absolute;top:74px;right:46px;color:var(--muted);font-size:11px;display:flex;gap:12px;align-items:center}
+.pg-ink{position:absolute;top:140px;left:46px;right:46px;font-family:Caveat;font-size:24px;line-height:1.7;color:#1a1a1a}
+.pg-ink .pur{color:var(--accent);font-weight:600}
+.pg-ink .blu{color:#0078D4}
+.pg-ink .red{color:#D13438;text-decoration:underline;text-decoration-color:#D13438;text-decoration-thickness:2px;text-underline-offset:3px}
+.pg-ink .hl{background:linear-gradient(transparent 55%,rgba(240,220,60,0.55) 55%);padding:0 2px}
+.pg-ink .rect{display:inline-block;border:2px solid var(--accent);padding:2px 12px;border-radius:3px;margin:2px 4px;font-family:Caveat;color:var(--accent)}
+.pg-shape{position:absolute}
+.pg-shape.circle{top:300px;right:120px;width:80px;height:80px;border:3px solid #0078D4;border-radius:50%}
+.pg-shape.arrow{top:340px;right:200px;color:#D13438;font-size:32px;font-family:Caveat}
+
+/* Zoom indicator */
+.zoom-indicator{position:absolute;bottom:18px;left:22px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;display:flex;align-items:center;gap:8px;color:var(--ink);box-shadow:0 2px 6px rgba(0,0,0,0.06)}
+.zoom-btn{cursor:pointer;font-size:14px;color:var(--muted);padding:0 4px}
+.zoom-btn:hover{color:var(--accent)}
+.fab-col{position:absolute;bottom:22px;right:22px;display:flex;gap:10px}
+.fab{width:42px;height:42px;border-radius:50%;background:#fff;color:var(--ink);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.08);font-size:16px}
+.fab.primary{background:var(--accent);color:#fff;border-color:var(--accent-deep);box-shadow:0 4px 14px rgba(119,25,170,0.4)}
+
+/* ==== PDF backdrop ==== */
+.pdf-page{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:78%;height:calc(100% - 28px);background:#fff;border:1px solid #ddd;box-shadow:0 2px 8px rgba(0,0,0,0.08);padding:40px 48px;overflow:hidden}
+.pdf-page::before{content:'PDF · Arbeitsblatt Integration · Seite 2/5';position:absolute;top:-22px;left:0;font-size:10px;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;font-family:Inter}
+.pdf-h{font-family:'Times New Roman',serif;font-size:18px;font-weight:bold;margin:0 0 10px;color:#333}
+.pdf-p{font-family:'Times New Roman',serif;font-size:12px;color:#444;line-height:1.55;margin:0 0 10px;max-width:90%}
+.pdf-eq{font-family:'Times New Roman',serif;font-size:14px;text-align:center;margin:16px 0;color:#333;font-style:italic}
+.pdf-ex{background:#f7f4ef;border-left:3px solid #999;padding:10px 14px;margin:16px 0;font-family:'Times New Roman',serif;font-size:12px;color:#333}
+.pdf-question{font-family:'Times New Roman',serif;font-size:12px;margin:16px 0 4px;color:#333}
+.pdf-question b{font-weight:bold}
+.pdf-linefield{border-bottom:1px dotted #999;height:28px;margin-bottom:10px;position:relative}
+.pdf-annotate{position:absolute;font-family:Caveat;color:#0078D4;font-size:20px;line-height:1}
+.pdf-circle{position:absolute;width:auto;height:32px;border:2.5px solid #D13438;border-radius:50%;padding:0 12px}
+
+/* ==== Pages overview ==== */
+.pages-big .body{grid-template-columns:180px 1fr}
+.pages-grid{padding:26px 36px;overflow:auto;display:grid;grid-template-columns:repeat(4,1fr);gap:22px;background:#FAFAFA}
+.pg-card{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s;position:relative}
+.pg-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,0.08)}
+.pg-card.active{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.pg-card.sub::before{content:'↳ Unterseite';position:absolute;top:8px;right:10px;color:var(--accent);font-size:9px;background:var(--accent-soft);padding:2px 6px;border-radius:8px;font-weight:600;letter-spacing:0.03em;z-index:2}
+.pg-card.pdf::before{content:'PDF';position:absolute;top:8px;right:10px;color:#fff;font-size:9px;background:#D13438;padding:2px 6px;border-radius:8px;font-weight:600;letter-spacing:0.05em;z-index:2}
+.pg-thumb{aspect-ratio:4/3;background:#fff;background-image:repeating-linear-gradient(var(--lined) 0 1px,transparent 1px 12px);background-size:100% 12px;background-position:0 30px;position:relative;overflow:hidden}
+.pg-thumb .tt{position:absolute;top:10px;left:12px;font-family:Caveat;font-size:16px;color:#222}
+.pg-thumb .th{position:absolute;top:44px;left:12px;right:12px;font-family:Caveat;font-size:10px;color:#333;line-height:1.6;opacity:0.75}
+.pg-thumb.pdf{background:#f8f5ee;background-image:none}
+.pg-thumb.pdf .pdf-marker{position:absolute;inset:8px;background:#fff;border:1px solid #ddd;font-family:'Times New Roman',serif;font-size:6px;padding:6px;color:#444;line-height:1.4;overflow:hidden}
+.pg-thumb.pdf .pdf-anno{position:absolute;top:14px;right:14px;font-family:Caveat;color:#0078D4;font-size:10px}
+.pg-meta{padding:8px 12px;font-size:11px;display:flex;align-items:baseline}
+.pg-meta .pm-t{font-weight:600;font-size:12px;flex:1}
+.pg-meta .pm-d{color:var(--muted);margin-left:4px}
+
+/* ==== Settings ==== */
+.settings-view .body{grid-template-columns:1fr}
+.set-wrap{background:#FAFAFA;overflow:auto;display:flex}
+.set-nav{width:220px;flex-shrink:0;padding:22px 0;background:#fff;border-right:1px solid var(--border)}
+.set-nav-hdr{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);font-weight:600;margin:0 0 8px;padding:0 22px}
+.set-nav-item{padding:8px 22px;font-size:13px;color:var(--ink);cursor:pointer;border-left:3px solid transparent}
+.set-nav-item.active{background:var(--accent-soft);color:var(--accent);font-weight:600;border-left-color:var(--accent)}
+.set-nav-item:hover:not(.active){background:rgba(0,0,0,0.025)}
+.set-main{flex:1;padding:26px 44px 40px;overflow:auto}
+.set-main h2{margin:0 0 4px;font-size:22px;font-weight:600}
+.set-main .desc{color:var(--muted);margin:0 0 22px;font-size:13px}
+.set-group{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:18px}
+.set-group-hdr{padding:12px 20px 4px;font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);font-weight:600}
+.set-row{display:flex;align-items:center;padding:13px 20px;border-top:1px solid var(--border-soft);font-size:13px}
+.set-row:first-of-type{border-top:none}
+.set-row .lbl{flex:1}
+.set-row .lbl small{display:block;color:var(--muted);margin-top:3px;font-size:11px;line-height:1.45}
+.set-row .val{color:var(--muted);margin-right:12px;font-size:12px}
+.chev{color:#999;font-size:14px}
+.tg{width:34px;height:20px;background:#C8C6C4;border-radius:10px;position:relative;flex-shrink:0}
+.tg::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:#fff;border-radius:50%;box-shadow:0 1px 2px rgba(0,0,0,0.25);transition:left 0.15s}
+.tg.on{background:var(--accent)}
+.tg.on::after{left:16px}
+.reset-btn{background:#fff;border:1px solid var(--border);color:var(--accent);padding:10px 22px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.reset-btn:hover{background:var(--accent-soft);border-color:var(--accent)}
+
+/* ==== Theme switcher drawer ==== */
+.theme-drawer{position:absolute;top:0;right:0;bottom:0;width:380px;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,0.14);border-left:1px solid var(--border);display:flex;flex-direction:column;z-index:5}
+.td-head{padding:22px 24px 12px;border-bottom:1px solid var(--border);display:flex;align-items:baseline;gap:12px}
+.td-head h3{margin:0;font-size:17px;font-weight:600}
+.td-head .close{margin-left:auto;cursor:pointer;color:var(--muted);font-size:18px}
+.td-body{padding:20px 24px;overflow:auto}
+.td-section-lbl{font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);font-weight:600;margin:6px 0 10px}
+.theme-card{display:flex;gap:12px;padding:12px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;margin-bottom:10px;transition:border-color 0.15s,background 0.15s}
+.theme-card:hover{background:#FAFAFA}
+.theme-card.active{border-color:var(--accent);background:var(--accent-soft)}
+.theme-preview{width:72px;height:54px;border-radius:6px;flex-shrink:0;position:relative;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.04)}
+.tp-schiefer{background:#fff}
+.tp-schiefer::before{content:'';position:absolute;top:0;left:0;right:0;height:10px;background:#7719AA}
+.tp-schiefer::after{content:'';position:absolute;bottom:8px;left:10px;right:10px;height:1px;background:#D8E1EE;box-shadow:0 6px 0 #D8E1EE,0 12px 0 #D8E1EE}
+.tp-notiz{background:#FDF9EF}
+.tp-notiz::before{content:'';position:absolute;top:0;left:0;right:0;height:10px;background:#2D7A7F}
+.tp-notiz::after{content:'';position:absolute;bottom:8px;left:10px;right:10px;height:1px;background:#F1E6BE;box-shadow:0 6px 0 #F1E6BE,0 12px 0 #F1E6BE}
+.tp-studio{background:#F9F5EF;font-family:Fraunces,serif;font-style:italic;color:#B85C4A;display:flex;align-items:center;justify-content:center;font-size:16px}
+.tp-studio::before{content:'';position:absolute;left:8px;top:6px;bottom:6px;width:2px;background:#B85C4A}
+.theme-meta{flex:1;display:flex;flex-direction:column;gap:2px}
+.theme-meta .tn{font-size:14px;font-weight:600}
+.theme-meta .td{font-size:11px;color:var(--muted);line-height:1.4}
+.theme-meta .dna{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:0.04em}
+
+.ui-slider{margin:8px 0 14px}
+.ui-slider-track{height:4px;background:var(--border);border-radius:2px;position:relative;margin:10px 0}
+.ui-slider-track::after{content:'';position:absolute;top:-6px;left:45%;width:16px;height:16px;background:var(--accent);border-radius:50%;box-shadow:0 2px 5px rgba(119,25,170,0.35)}
+.ui-slider-lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+
+.drawer-tg{display:flex;align-items:center;padding:12px 0;border-top:1px solid var(--border-soft);font-size:13px}
+.drawer-tg:first-of-type{border-top:none}
+.drawer-tg .lbl{flex:1}
+.drawer-tg .lbl small{display:block;color:var(--muted);margin-top:3px;font-size:11px}
+
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,0.3);z-index:4}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← zurück</a>
+<div class="shell">
+  <div class="hd">
+    <div class="badge">v1-SPEC · 54 Features</div>
+    <h1>Inktest · OneNote-Layout</h1>
+    <p>Basis-DNA ist OneNote: lila Titelleiste, Sections als Farb-Tabs, Pages mit Unterseiten, volle Zeichen-Toolbar. Farbe/Schrift wechselt per Hamburger-Theme-Switcher. Engine-Tuning liegt versteckt in Einstellungen → Erweitert → Engine. Vier Screens decken Haupt-Interaktion, PDF-Annotation, Einstellungen und Theme-Switcher ab.</p>
+  </div>
+
+  <!-- ============ SCREEN 1: Hauptansicht ============ -->
+  <div class="frame">
+    <div class="frame-label">Screen 1 · Hauptansicht mit voller Toolbar</div>
+    <div class="screen">
+      <div class="titlebar">
+        <span class="tb-hamburger">☰</span>
+        <span class="tb-title">Inktest</span>
+        <span class="tb-sub">· Mathe 12 · Analysis</span>
+        <span class="tb-spacer"></span>
+        <span class="tb-sync"><span class="tb-sync-dot"></span>Synchronisiert · vor 2 s</span>
+        <span class="tb-search">🔍 Suchen …</span>
+        <span class="tb-icon">⚙</span>
+      </div>
+      <div class="tabs">
+        <div class="tab active"><span class="tab-dot" style="background:var(--chip-math)"></span>Mathe 12</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-hist)"></span>Geschichte</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-bio)"></span>Biologie</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-chem)"></span>Chemie</div>
+        <div class="tab-add">＋</div>
+      </div>
+      <div class="toolbar">
+        <div class="tgrp">
+          <div class="tool primary"><span class="tool-icon">✏</span>Stift</div>
+          <div class="tool"><span class="tool-icon">🖍</span>Highlight</div>
+          <div class="tool"><span class="tool-icon">🧽</span>Radierer</div>
+          <div class="tool"><span class="tool-icon">⬚</span>Lasso</div>
+          <div class="tool"><span class="tool-icon">T</span>Text</div>
+        </div>
+        <div class="tsep"></div>
+        <div class="tgrp">
+          <div class="tool"><span class="tool-icon">📏</span>Lineal</div>
+          <div class="tool"><span class="tool-icon">▭</span>Rechteck</div>
+          <div class="tool"><span class="tool-icon">○</span>Kreis</div>
+          <div class="tool"><span class="tool-icon">→</span>Pfeil</div>
+        </div>
+        <div class="tsep"></div>
+        <div class="chips">
+          <div class="chip black active"></div>
+          <div class="chip blue"></div>
+          <div class="chip red"></div>
+          <div class="chip green"></div>
+          <div class="chip orange fav"></div>
+          <div class="chip purple fav"></div>
+          <div class="chip cyan"></div>
+        </div>
+        <div class="tsep"></div>
+        <div class="width-presets">
+          <div class="wp thin"><span class="wp-dot"></span></div>
+          <div class="wp med active"><span class="wp-dot"></span></div>
+          <div class="wp thick"><span class="wp-dot"></span></div>
+          <div class="wp-slider"></div>
+          <span style="font-size:11px;color:var(--muted)">4.2 px</span>
+        </div>
+        <div class="tsep"></div>
+        <div class="tool"><span class="tool-icon">↶</span>Undo</div>
+        <div class="tool"><span class="tool-icon">↷</span>Redo</div>
+      </div>
+      <div class="body">
+        <div class="sections">
+          <div class="sec-hdr"><span>Abschnitte</span><span class="add">＋</span></div>
+          <div class="sec active"><span class="sec-dot" style="background:var(--chip-math)"></span>Analysis</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-hist)"></span>Vektoren</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-bio)"></span>Stochastik</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-purple)"></span>Klausuren</div>
+        </div>
+        <div class="pages">
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.1 Grenzwerte</div><div class="pdate">12. Apr</div></div></div>
+          <div class="page active"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.2 Integration</div><div class="pdate">heute</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Herleitung</div><div class="pdate">heute</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Beispiele</div><div class="pdate">heute</div></div></div>
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.3 Substitution</div><div class="pdate">14. Apr</div></div></div>
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Arbeitsblatt <span class="pdf-icon">PDF</span></div><div class="pdate">18. Apr</div></div></div>
+          <div class="page-add">＋ Seite hinzufügen</div>
+        </div>
+        <div class="canvas lined">
+          <div class="pg-title">Integration durch Substitution</div>
+          <div class="pg-date">Donnerstag, 24. April 2026</div>
+          <div class="pg-tools-meta"><span>Papier: lineiert</span><span>·</span><span>Seite 2/6</span></div>
+          <div class="pg-ink">
+            Idee: wenn <span class="pur">f(g(x)) · g'(x)</span> im Integranden,<br>
+            dann <span class="hl">substituiere u = g(x)</span>, du = g'(x) dx<br>
+            <br>
+            Beispiel: &nbsp;∫ 2x · cos(x²) dx<br>
+            &nbsp;&nbsp;u = x² &nbsp; → &nbsp; du = 2x dx<br>
+            &nbsp;&nbsp;= ∫ cos(u) du = <span class="red">sin(x²) + C</span>
+          </div>
+          <div class="pg-shape circle"></div>
+          <div class="pg-shape arrow">→ Probe!</div>
+          <div class="zoom-indicator">
+            <span class="zoom-btn">−</span>
+            <span>75 %</span>
+            <span class="zoom-btn">＋</span>
+            <span style="color:var(--muted);margin-left:4px">· 2-Finger-Pan/Zoom</span>
+          </div>
+          <div class="fab-col">
+            <div class="fab">⤢</div>
+            <div class="fab primary">＋</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN 2: PDF als Unterlage ============ -->
+  <div class="frame">
+    <div class="frame-label">Screen 2 · PDF als annotierbare Unterlage (Arbeitsblatt)</div>
+    <div class="screen">
+      <div class="titlebar">
+        <span class="tb-hamburger">☰</span>
+        <span class="tb-title">Inktest</span>
+        <span class="tb-sub">· Mathe 12 · Analysis · Arbeitsblatt 2/5</span>
+        <span class="tb-spacer"></span>
+        <span class="tb-sync"><span class="tb-sync-dot"></span>Synchronisiert</span>
+        <span class="tb-search">🔍 Suchen …</span>
+        <span class="tb-icon">⚙</span>
+      </div>
+      <div class="tabs">
+        <div class="tab active"><span class="tab-dot" style="background:var(--chip-math)"></span>Mathe 12</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-hist)"></span>Geschichte</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-bio)"></span>Biologie</div>
+      </div>
+      <div class="toolbar">
+        <div class="tgrp">
+          <div class="tool"><span class="tool-icon">✏</span>Stift</div>
+          <div class="tool primary"><span class="tool-icon">🖍</span>Highlight</div>
+          <div class="tool"><span class="tool-icon">🧽</span>Radierer</div>
+          <div class="tool"><span class="tool-icon">⬚</span>Lasso</div>
+          <div class="tool"><span class="tool-icon">T</span>Text</div>
+        </div>
+        <div class="tsep"></div>
+        <div class="chips">
+          <div class="chip black"></div>
+          <div class="chip blue active"></div>
+          <div class="chip red"></div>
+          <div class="chip green"></div>
+        </div>
+        <div class="tsep"></div>
+        <div class="tool"><span class="tool-icon">↶</span>Undo</div>
+        <div class="tool"><span class="tool-icon">↷</span>Redo</div>
+      </div>
+      <div class="body">
+        <div class="sections">
+          <div class="sec-hdr"><span>Abschnitte</span><span class="add">＋</span></div>
+          <div class="sec active"><span class="sec-dot" style="background:var(--chip-math)"></span>Analysis</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-hist)"></span>Vektoren</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-bio)"></span>Stochastik</div>
+        </div>
+        <div class="pages">
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.2 Integration</div><div class="pdate">heute</div></div></div>
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.3 Substitution</div><div class="pdate">14. Apr</div></div></div>
+          <div class="page active"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Arbeitsblatt 1 <span class="pdf-icon">PDF</span></div><div class="pdate">18. Apr · Seite 2/5</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Seite 1</div></div></div>
+          <div class="page sub" style="background:#fff;border-left-color:var(--accent)"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle" style="font-weight:600">Seite 2</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Seite 3</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Seite 4</div></div></div>
+          <div class="page sub"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">Seite 5</div></div></div>
+        </div>
+        <div class="canvas" style="background:#f3efe8">
+          <div class="pdf-page">
+            <h3 class="pdf-h">Arbeitsblatt 1 · Integration durch Substitution</h3>
+            <p class="pdf-p">Bearbeite die folgenden Aufgaben und gib den Lösungsweg nachvollziehbar an. Substituiere, wo sinnvoll.</p>
+            <div class="pdf-eq">(a) &nbsp; ∫ 2x · cos(x²) dx &nbsp;=&nbsp; ?</div>
+            <div class="pdf-eq">(b) &nbsp; ∫ (3x² + 1) · e^(x³ + x) dx &nbsp;=&nbsp; ?</div>
+            <div class="pdf-ex">
+              <b>Hinweis:</b> Setze u = g(x) und du = g'(x) dx. Prüfe am Ende durch Ableiten.
+            </div>
+            <div class="pdf-question"><b>1. Berechne:</b></div>
+            <div class="pdf-linefield"></div>
+            <div class="pdf-linefield">
+              <span class="pdf-annotate" style="top:-2px;left:4px">u = x², du = 2x dx</span>
+              <span class="pdf-circle" style="top:-4px;right:20px;width:150px">
+                <span class="pdf-annotate" style="top:4px;left:14px;color:#D13438;font-size:16px">sin(x²) + C</span>
+              </span>
+            </div>
+            <div class="pdf-linefield"></div>
+          </div>
+          <div class="zoom-indicator">
+            <span class="zoom-btn">−</span>
+            <span>100 %</span>
+            <span class="zoom-btn">＋</span>
+            <span style="color:var(--muted);margin-left:4px">· PDF-Unterlage</span>
+          </div>
+          <div class="fab-col">
+            <div class="fab">⤢</div>
+            <div class="fab primary">＋</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN 3: Einstellungen ============ -->
+  <div class="frame">
+    <div class="frame-label">Screen 3 · Einstellungen · „Erweitert" geöffnet</div>
+    <div class="screen settings-view">
+      <div class="titlebar">
+        <span class="tb-hamburger">☰</span>
+        <span class="tb-title">Inktest</span>
+        <span class="tb-sub">· Einstellungen</span>
+        <span class="tb-spacer"></span>
+        <span class="tb-icon">✕</span>
+      </div>
+      <div class="body">
+        <div class="set-wrap">
+          <div class="set-nav">
+            <div class="set-nav-hdr">Bereich</div>
+            <div class="set-nav-item">Allgemein</div>
+            <div class="set-nav-item">Stift &amp; Tinte</div>
+            <div class="set-nav-item">Seiten</div>
+            <div class="set-nav-item">Synchronisation</div>
+            <div class="set-nav-item">Darstellung</div>
+            <div class="set-nav-item active">Erweitert · Engine</div>
+            <div class="set-nav-item">Diagnose</div>
+            <div class="set-nav-item">Über Inktest</div>
+          </div>
+          <div class="set-main">
+            <h2>Erweitert · Engine</h2>
+            <p class="desc">Tuning-Parameter für die Stift-Engine. Wirken ohne App-Neustart. Stammt aus dem Panel-Performance-Test.</p>
+
+            <div class="set-group">
+              <div class="set-group-hdr">Performance</div>
+              <div class="set-row"><div class="lbl">Unbuffered Dispatch<small>Umgeht System-Event-Resampling. Auf CTouch-Panel empfohlen.</small></div><div class="tg on"></div></div>
+              <div class="set-row"><div class="lbl">Layer-Modus<small>HARDWARE cacht als GPU-Textur, SOFTWARE rendert per CPU.</small></div><div class="val">HARDWARE</div><div class="chev">›</div></div>
+              <div class="set-row"><div class="lbl">Bitmap-Format<small>RGB_565 spart Speicherbandbreite.</small></div><div class="val">ARGB_8888</div><div class="chev">›</div></div>
+            </div>
+
+            <div class="set-group">
+              <div class="set-group-hdr">Stiftführung</div>
+              <div class="set-row"><div class="lbl">Glättungs-Algorithmus<small>Catmull-Rom wirkt flüssiger, Bezier schneller.</small></div><div class="val">Catmull-Rom</div><div class="chev">›</div></div>
+              <div class="set-row"><div class="lbl">Prediction-Modus<small>Extrapoliert nächsten Punkt — verkürzt wahrgenommene Latenz.</small></div><div class="val">Linear 20 px</div><div class="chev">›</div></div>
+              <div class="set-row"><div class="lbl">Canvas-Clipping (BBox)</div><div class="tg on"></div></div>
+              <div class="set-row"><div class="lbl">Damage-Rect-Invalidation</div><div class="tg"></div></div>
+            </div>
+
+            <div class="set-group">
+              <div class="set-group-hdr">Diagnose</div>
+              <div class="set-row"><div class="lbl">Metrics-Overlay<small>Events/s, FPS, DOWN→onDraw, Strichzähler live am Rand.</small></div><div class="tg"></div></div>
+            </div>
+
+            <button class="reset-btn">↺ &nbsp;Alle Einstellungen auf Default zurücksetzen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SCREEN 4: Theme-Switcher ============ -->
+  <div class="frame">
+    <div class="frame-label">Screen 4 · Theme-Switcher (Hamburger → Darstellung)</div>
+    <div class="screen">
+      <div class="titlebar">
+        <span class="tb-hamburger" style="background:rgba(255,255,255,0.2)">☰</span>
+        <span class="tb-title">Inktest</span>
+        <span class="tb-sub">· Mathe 12 · Analysis</span>
+        <span class="tb-spacer"></span>
+        <span class="tb-sync"><span class="tb-sync-dot"></span>Synchronisiert</span>
+        <span class="tb-icon">⚙</span>
+      </div>
+      <div class="tabs">
+        <div class="tab active"><span class="tab-dot" style="background:var(--chip-math)"></span>Mathe 12</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-hist)"></span>Geschichte</div>
+        <div class="tab"><span class="tab-dot" style="background:var(--chip-bio)"></span>Biologie</div>
+      </div>
+      <div class="body" style="grid-template-columns:180px 180px 1fr">
+        <div class="sections">
+          <div class="sec-hdr"><span>Abschnitte</span><span class="add">＋</span></div>
+          <div class="sec active"><span class="sec-dot" style="background:var(--chip-math)"></span>Analysis</div>
+          <div class="sec"><span class="sec-dot" style="background:var(--chip-hist)"></span>Vektoren</div>
+        </div>
+        <div class="pages">
+          <div class="page"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.1 Grenzwerte</div></div></div>
+          <div class="page active"><span class="drag">⋮⋮</span><div class="pcol"><div class="ptitle">12.2 Integration</div></div></div>
+        </div>
+        <div class="canvas lined">
+          <div class="pg-title">Integration durch Substitution</div>
+          <div class="pg-ink" style="opacity:0.4">
+            Idee: wenn <span class="pur">f(g(x)) · g'(x)</span> …
+          </div>
+          <div class="scrim"></div>
+        </div>
+      </div>
+      <div class="theme-drawer">
+        <div class="td-head">
+          <h3>Darstellung</h3>
+          <span class="close">✕</span>
+        </div>
+        <div class="td-body">
+          <div class="td-section-lbl">Theme</div>
+          <div class="theme-card active">
+            <div class="theme-preview tp-schiefer"></div>
+            <div class="theme-meta">
+              <div class="tn">Schiefertafel</div>
+              <div class="td">OneNote-Lila, Inter, lineiertes Blauweiß</div>
+              <div class="dna">Akzent #7719AA · Inter · blank/lineiert/kariert</div>
+            </div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-preview tp-notiz"></div>
+            <div class="theme-meta">
+              <div class="tn">Notizheft</div>
+              <div class="td">Beige-Papier, Kalam-Schrift, Petrol-Akzent</div>
+              <div class="dna">Akzent #2D7A7F · Kalam · warmes Beige</div>
+            </div>
+          </div>
+          <div class="theme-card">
+            <div class="theme-preview tp-studio">I</div>
+            <div class="theme-meta">
+              <div class="tn">Studio</div>
+              <div class="td">Off-White, Fraunces-Serif, Terracotta</div>
+              <div class="dna">Akzent #B85C4A · Fraunces · sparsam</div>
+            </div>
+          </div>
+
+          <div class="td-section-lbl" style="margin-top:22px">Modus &amp; UI</div>
+          <div class="drawer-tg">
+            <div class="lbl">Hell-/Dunkel-Modus<small>Folgt Systemeinstellung, manuell überschreibbar.</small></div>
+            <div class="tg on"></div>
+          </div>
+          <div class="ui-slider">
+            <div class="ui-slider-lbl"><span>UI-Schriftgröße</span><span>mittel (14 pt)</span></div>
+            <div class="ui-slider-track"></div>
+            <div class="ui-slider-lbl"><span>klein</span><span>groß</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

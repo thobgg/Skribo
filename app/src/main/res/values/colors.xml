@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Skribo Brand Colors -->
+    <color name="skribo_ink">#0F1729</color>
+    <color name="skribo_ink_soft">#1A2237</color>
+    <color name="skribo_rust">#B85C4A</color>
+    <color name="skribo_paper">#FBFAF6</color>
+    <color name="skribo_paper_warm">#F4EFE5</color>
+
+    <color name="canvas_bg">#FFFFFFFF</color>
+    <color name="panel_bg">#E60F1729</color>
+    <color name="panel_bg_translucent">#CC0F1729</color>
+    <color name="panel_text">#FFFBFAF6</color>
+
+    <color name="nav_tab_bg">#FBFAF6</color>
+    <color name="nav_list_bg">#FFFEFA</color>
+    <color name="nav_border">#E1DCD2</color>
+    <color name="nav_text">#0F1729</color>
+    <color name="nav_muted">#6B7280</color>
+    <color name="nav_accent">#B85C4A</color>
+    <color name="nav_accent_soft">#1AB85C4A</color>
+    <color name="nav_active_bg">#FFFFFFFF</color>
+
+    <color name="paper_blank">#FBFAF6</color>
+    <color name="paper_line">#D8E1EE</color>
+    <color name="paper_grid">#E5E5E5</color>
+</resources>

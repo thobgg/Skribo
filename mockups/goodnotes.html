@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Inktest · GoodNotes-like</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Kalam:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FDF9EF;
+  --paper-edge:#F2EBD9;
+  --cream:#F7F1E3;
+  --cream-hi:#FCF7EA;
+  --cream-shadow:#E3D9BC;
+  --ink:#2C2620;
+  --muted:#857B6B;
+  --rule:#D9CEB0;
+  --line-yellow:#F1E6BE;
+  --accent:#2D7A7F;
+  --accent-soft:rgba(45,122,127,0.1);
+  --pen-1:#1A1A1A;
+  --pen-2:#C23B3B;
+  --pen-3:#1E5FA1;
+  --pen-4:#2E7D32;
+  --pen-5:#E8A94A;
+  --shadow:0 2px 4px rgba(68,55,30,0.08),0 12px 30px rgba(68,55,30,0.12);
+  --shadow-soft:0 1px 3px rgba(68,55,30,0.06),0 6px 14px rgba(68,55,30,0.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:#E9E3D3;color:var(--ink);font-family:Inter,-apple-system,'SF Pro',system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+.back{position:fixed;top:18px;left:18px;font-size:13px;color:var(--muted);text-decoration:none;background:var(--cream-hi);padding:7px 14px;border-radius:20px;border:1px solid var(--cream-shadow);z-index:100;font-weight:500}
+.back:hover{color:var(--accent)}
+.shell{max-width:1500px;margin:0 auto;padding:70px 40px 100px}
+.hd{margin-bottom:50px}
+.hd h1{margin:0 0 8px;font-size:32px;letter-spacing:-0.02em;font-weight:600}
+.hd p{margin:0;color:var(--muted);max-width:720px;line-height:1.55}
+.frame{margin-bottom:70px}
+.frame-label{color:var(--muted);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;font-weight:600;margin-bottom:12px;padding-left:4px}
+.screen{background:var(--cream);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);aspect-ratio:16/9;display:flex;flex-direction:column;position:relative}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--cream-hi);border-bottom:1px solid var(--cream-shadow);flex-shrink:0;min-height:52px}
+.tb-back{width:34px;height:34px;border-radius:10px;background:var(--cream);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;color:var(--ink)}
+.tb-back:hover{background:#fff}
+.tb-title{display:flex;flex-direction:column;line-height:1.15;margin-left:4px}
+.tb-title .t1{font-weight:600;font-size:14px}
+.tb-title .t2{font-size:11px;color:var(--muted)}
+.tb-spacer{flex:1}
+.tb-tools{display:flex;gap:6px;align-items:center}
+.tool{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:var(--cream);color:var(--ink);cursor:pointer;font-size:16px}
+.tool:hover{background:#fff}
+.tool.active{background:var(--accent);color:#fff;box-shadow:0 3px 10px rgba(45,122,127,0.4)}
+.tool.text{width:auto;padding:0 14px;font-size:13px;font-weight:500;gap:6px}
+.tb-pens{display:flex;gap:8px;align-items:center;padding:0 10px;background:var(--cream);border-radius:18px;height:38px}
+.pen-chip{width:22px;height:22px;border-radius:50%;cursor:pointer;position:relative;transition:transform 0.15s}
+.pen-chip:hover{transform:translateY(-2px)}
+.pen-chip.active{transform:translateY(-3px);box-shadow:0 3px 6px rgba(0,0,0,0.2)}
+.pen-chip.active::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:currentColor}
+.pen-chip.p1{background:var(--pen-1);color:var(--pen-1)}
+.pen-chip.p2{background:var(--pen-2);color:var(--pen-2)}
+.pen-chip.p3{background:var(--pen-3);color:var(--pen-3)}
+.pen-chip.p4{background:var(--pen-4);color:var(--pen-4)}
+.pen-chip.p5{background:var(--pen-5);color:var(--pen-5)}
+
+/* Body */
+.body{flex:1;display:grid;grid-template-columns:72px 1fr;min-height:0;position:relative}
+.railside{background:var(--cream-hi);border-right:1px solid var(--cream-shadow);padding:14px 0;display:flex;flex-direction:column;align-items:center;gap:14px;overflow:hidden}
+.rail-thumb{width:48px;aspect-ratio:3/4;border-radius:6px;background:#fff;border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;box-shadow:var(--shadow-soft)}
+.rail-thumb.active{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.rail-thumb .mini{position:absolute;inset:4px 4px;font-family:Kalam;font-size:6px;line-height:1.4;color:#333;overflow:hidden}
+.rail-num{position:absolute;bottom:2px;right:4px;font-size:8px;color:var(--muted);background:rgba(255,255,255,0.9);padding:0 3px;border-radius:3px;font-weight:600}
+.rail-add{width:48px;height:36px;border-radius:6px;border:1.5px dashed var(--cream-shadow);display:flex;align-items:center;justify-content:center;color:var(--muted);cursor:pointer;margin-top:6px;font-size:18px;font-weight:300}
+.rail-add:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Canvas area */
+.canvas-wrap{position:relative;overflow:hidden;background:var(--paper-edge);display:flex;align-items:center;justify-content:center;padding:14px}
+.paper{background:var(--paper);border-radius:6px;box-shadow:0 2px 10px rgba(68,55,30,0.1),0 18px 40px rgba(68,55,30,0.12);width:100%;height:100%;position:relative;overflow:hidden;border:1px solid var(--paper-edge)}
+.paper.lined{background-image:repeating-linear-gradient(var(--line-yellow) 0 1px,transparent 1px 34px);background-size:100% 34px;background-position:0 70px}
+.paper.lined::before{content:'';position:absolute;top:0;bottom:0;left:68px;width:1px;background:rgba(194,59,59,0.3)}
+.p-title{position:absolute;top:22px;left:90px;right:28px;font-family:Kalam;font-weight:700;font-size:30px;color:var(--pen-1)}
+.p-date{position:absolute;top:22px;right:28px;font-size:11px;color:var(--muted);font-family:Inter}
+.p-ink{position:absolute;top:80px;left:90px;right:28px;font-family:Kalam;font-size:20px;line-height:1.7;color:var(--pen-1)}
+.p-ink .red{color:var(--pen-2)}
+.p-ink .blue{color:var(--pen-3)}
+.p-ink .teal{color:var(--accent)}
+.p-ink .yel{background:linear-gradient(transparent 60%,rgba(232,169,74,0.5) 60%);padding:0 2px}
+
+/* Float tool button */
+.floatbar{position:absolute;bottom:24px;right:24px;display:flex;gap:10px;background:rgba(255,255,255,0.95);padding:6px;border-radius:22px;box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+.fb{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)}
+.fb:hover{background:var(--cream)}
+.fb.primary{background:var(--accent);color:#fff}
+
+/* Pages (thumb grid) */
+.pages-view .body{grid-template-columns:1fr;padding:28px 40px;background:var(--cream);overflow:auto}
+.pages-view .header{display:flex;align-items:baseline;gap:14px;margin-bottom:22px}
+.pages-view h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-0.01em}
+.pages-view .count{color:var(--muted);font-size:13px}
+.pages-view .actions{margin-left:auto;display:flex;gap:8px}
+.pages-view .act{padding:7px 14px;border-radius:20px;background:var(--cream-hi);color:var(--ink);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.pages-view .act.primary{background:var(--accent);color:#fff}
+.pg-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:20px}
+.pg-card{background:var(--paper);border-radius:10px;overflow:hidden;cursor:pointer;box-shadow:var(--shadow-soft);transition:transform 0.18s,box-shadow 0.18s;position:relative}
+.pg-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
+.pg-card.active{box-shadow:0 0 0 2px var(--accent),var(--shadow)}
+.pg-thumb{aspect-ratio:3/4;position:relative;background-image:repeating-linear-gradient(var(--line-yellow) 0 1px,transparent 1px 12px);background-size:100% 12px;background-position:0 24px}
+.pg-thumb::before{content:'';position:absolute;top:0;bottom:0;left:22px;width:1px;background:rgba(194,59,59,0.25)}
+.pg-thumb .tt{position:absolute;top:8px;left:28px;right:10px;font-family:Kalam;font-weight:700;font-size:12px;color:var(--pen-1)}
+.pg-thumb .th{position:absolute;top:32px;left:28px;right:10px;font-family:Kalam;font-size:8px;line-height:1.5;color:#333;opacity:0.75}
+.pg-meta{padding:8px 12px}
+.pg-meta .pt{font-weight:600;font-size:12px}
+.pg-meta .pd{font-size:11px;color:var(--muted);margin-top:2px}
+.pg-add{background:transparent;border:2px dashed var(--cream-shadow);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:36px;font-weight:200;cursor:pointer;aspect-ratio:3/4.35}
+.pg-add:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Settings view */
+.settings-view .body{grid-template-columns:1fr;background:var(--cream)}
+.sheet{margin:34px auto;max-width:720px;width:calc(100% - 60px);background:var(--cream-hi);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+.sheet-hdr{padding:22px 26px 16px;display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--cream-shadow)}
+.sheet-hdr h2{margin:0;font-size:20px;font-weight:600}
+.sheet-hdr .crumb{color:var(--muted);font-size:13px;margin-left:auto}
+.sheet-body{padding:10px 0;overflow:auto}
+.grp-lbl{padding:20px 26px 6px;font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);font-weight:600}
+.row{display:flex;align-items:center;padding:12px 26px;border-bottom:1px solid var(--cream-shadow);font-size:14px}
+.row:last-child{border-bottom:none}
+.row .icon{width:30px;height:30px;border-radius:8px;background:var(--cream);display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:14px}
+.row .lb{flex:1}
+.row .lb small{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.row .val{color:var(--muted);font-size:13px;margin-right:10px}
+.chev{color:#aaa;font-size:16px}
+.tg{width:44px;height:26px;background:#D0C9B6;border-radius:13px;position:relative;flex-shrink:0}
+.tg::after{content:'';position:absolute;top:2px;left:2px;width:22px;height:22px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.18);transition:left 0.18s}
+.tg.on{background:var(--accent)}
+.tg.on::after{left:20px}
+</style>
+</head>
+<body>
+<a class="back" href="index.html">← zurück</a>
+<div class="shell">
+  <div class="hd">
+    <h1>02 · GoodNotes-like</h1>
+    <p>Apple-warme Anmutung, Papier-Textur statt Flächen, Stift-Chips als runde Kreise mit Tiefe. Page-Rail links mit Mini-Thumbnails, schwebende Toolpalette am Canvas-Rand. Für Leute, die iPad-Handschrift-Apps gewohnt sind und ein „Premium"-Feel erwarten.</p>
+  </div>
+
+  <!-- SCREEN 1: Main editor -->
+  <div class="frame">
+    <div class="frame-label">Screen 1 · Hauptansicht</div>
+    <div class="screen">
+      <div class="topbar">
+        <div class="tb-back">‹</div>
+        <div class="tb-title"><div class="t1">Mathe 12 · Analysis</div><div class="t2">12.2 Integration · 4 Seiten</div></div>
+        <div class="tb-spacer"></div>
+        <div class="tb-tools">
+          <div class="tool active">✏</div>
+          <div class="tool">✦</div>
+          <div class="tool">🧽</div>
+          <div class="tb-pens">
+            <div class="pen-chip p1 active"></div>
+            <div class="pen-chip p2"></div>
+            <div class="pen-chip p3"></div>
+            <div class="pen-chip p4"></div>
+            <div class="pen-chip p5"></div>
+          </div>
+          <div class="tool">↶</div>
+          <div class="tool">↷</div>
+          <div class="tool text">⋯</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="railside">
+          <div class="rail-thumb"><div class="mini">12.1 Grenzwerte<br>Def: lim f(x)<br>ε-δ</div><div class="rail-num">1</div></div>
+          <div class="rail-thumb active"><div class="mini">12.2 Integration<br>u = g(x)<br>∫ 2x cos x²</div><div class="rail-num">2</div></div>
+          <div class="rail-thumb"><div class="mini">12.3 Subst.<br>∫ u·v'</div><div class="rail-num">3</div></div>
+          <div class="rail-thumb"><div class="mini">Übungen<br>1-8</div><div class="rail-num">4</div></div>
+          <div class="rail-add">+</div>
+        </div>
+        <div class="canvas-wrap">
+          <div class="paper lined">
+            <div class="p-title">Integration durch Substitution</div>
+            <div class="p-date">24. April 2026</div>
+            <div class="p-ink">
+              Idee: wenn <span class="blue">f(g(x)) · g'(x)</span> im<br>
+              Integranden steht, dann <span class="yel">substituiere</span><br>
+              <span class="teal">u = g(x)</span>, du = g'(x) dx<br>
+              <br>
+              ∫ 2x · cos(x²) dx &nbsp; → &nbsp; u = x²<br>
+              &nbsp;&nbsp;= ∫ cos(u) du<br>
+              &nbsp;&nbsp;= <span class="red">sin(u) + C = sin(x²) + C</span>
+            </div>
+            <div class="floatbar">
+              <div class="fb">⌕</div>
+              <div class="fb">◐</div>
+              <div class="fb primary">✏</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 2: Pages grid -->
+  <div class="frame">
+    <div class="frame-label">Screen 2 · Alle Seiten</div>
+    <div class="screen pages-view">
+      <div class="topbar">
+        <div class="tb-back">‹</div>
+        <div class="tb-title"><div class="t1">Mathe 12 · Analysis</div><div class="t2">Alle Seiten</div></div>
+        <div class="tb-spacer"></div>
+        <div class="tb-tools">
+          <div class="tool">⊞</div>
+          <div class="tool active">☰</div>
+          <div class="tool text">⋯</div>
+        </div>
+      </div>
+      <div class="body">
+        <div class="header">
+          <h2>Analysis</h2>
+          <div class="count">4 Seiten</div>
+          <div class="actions">
+            <div class="act">⇅ Sortieren</div>
+            <div class="act primary">＋ Neue Seite</div>
+          </div>
+        </div>
+        <div class="pg-grid">
+          <div class="pg-card"><div class="pg-thumb"><div class="tt">12.1 Grenzwerte</div><div class="th">Def: lim f(x)<br>ε-δ-Kriterium<br>Bsp. 1/x, sin x/x</div></div><div class="pg-meta"><div class="pt">12.1 Grenzwerte</div><div class="pd">12. Apr 2026</div></div></div>
+          <div class="pg-card active"><div class="pg-thumb"><div class="tt">12.2 Integration</div><div class="th">f(g(x))·g'(x)<br>u = g(x)<br>∫ 2x·cos(x²)dx</div></div><div class="pg-meta"><div class="pt">12.2 Integration</div><div class="pd">heute</div></div></div>
+          <div class="pg-card"><div class="pg-thumb"><div class="tt">12.3 Subst.</div><div class="th">Partielle Int.<br>∫ u·v' = uv - ∫ u'·v</div></div><div class="pg-meta"><div class="pt">12.3 Substitution</div><div class="pd">14. Apr 2026</div></div></div>
+          <div class="pg-card"><div class="pg-thumb"><div class="tt">Übungen</div><div class="th">Aufg. 1-8<br>S. 142<br>Musterlösung</div></div><div class="pg-meta"><div class="pt">Übungen Kap. 12</div><div class="pd">18. Apr 2026</div></div></div>
+          <div class="pg-add">＋</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCREEN 3: Settings -->
+  <div class="frame">
+    <div class="frame-label">Screen 3 · Einstellungen als Sheet (Tuning unter „Erweitert")</div>
+    <div class="screen settings-view">
+      <div class="topbar">
+        <div class="tb-back">‹</div>
+        <div class="tb-title"><div class="t1">Einstellungen</div><div class="t2">Erweitert</div></div>
+        <div class="tb-spacer"></div>
+        <div class="tb-tools"><div class="tool">✕</div></div>
+      </div>
+      <div class="body">
+        <div class="sheet">
+          <div class="sheet-hdr">
+            <h2>Erweitert</h2>
+            <div class="crumb">Einstellungen · Erweitert</div>
+          </div>
+          <div class="sheet-body">
+            <div class="grp-lbl">Performance</div>
+            <div class="row"><div class="icon">⚡</div><div class="lb">Unbuffered Dispatch<small>Umgeht System-Resampling. Auf Panel empfohlen.</small></div><div class="tg on"></div></div>
+            <div class="row"><div class="icon">▢</div><div class="lb">Layer-Modus<small>Hardware-Layer cacht die Seite als GPU-Textur.</small></div><div class="val">HARDWARE</div><div class="chev">›</div></div>
+            <div class="row"><div class="icon">◐</div><div class="lb">Bitmap-Format<small>RGB_565 spart Speicherbandbreite.</small></div><div class="val">ARGB_8888</div><div class="chev">›</div></div>
+
+            <div class="grp-lbl">Engine-Tuning</div>
+            <div class="row"><div class="icon">✎</div><div class="lb">Smoothing-Algorithmus</div><div class="val">Catmull-Rom</div><div class="chev">›</div></div>
+            <div class="row"><div class="icon">↗</div><div class="lb">Prediction-Modus</div><div class="val">Linear 20 px</div><div class="chev">›</div></div>
+            <div class="row"><div class="icon">▭</div><div class="lb">Damage-Rect-Invalidation</div><div class="tg"></div></div>
+            <div class="row"><div class="icon">⧉</div><div class="lb">Canvas-Clipping (BBox)</div><div class="tg on"></div></div>
+            <div class="row"><div class="icon">📊</div><div class="lb">Metrics-Overlay anzeigen</div><div class="tg"></div></div>
+
+            <div class="grp-lbl">Zurücksetzen</div>
+            <div class="row"><div class="icon">↺</div><div class="lb" style="color:var(--pen-2)">Alle Einstellungen auf Default</div><div class="chev">›</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
