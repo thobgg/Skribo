@@ -44,25 +44,36 @@ selbst hostbar, Datenhoheit bei der Schule.
 - **Ink-Engine** (`InkView.kt`, `Stroke.kt`): Glättung (Bézier / Catmull-Rom / WMA),
   Motion-Prediction, umfangreiches Tuning-/Metrics-Panel für Latenz-Benchmarks.
 
-## 3. Milestones
+## 3. Stand heute
 
-> **Entwurf** — aus dem aktuellen Code-Stand abgeleitet. Bitte anpassen, was
-> bereits erledigt bzw. anders priorisiert ist.
+Der Android-Client (`app/`) entstand als **Latenz-Test** auf einem echten
+CTOUCH-Board: Ziel war zu klären, ob Android-Ink auf dieser Hardware latenzarm
+genug für flüssiges Schreiben im Unterricht ist. **Der Test war erfolgreich** —
+damit ist die technische Kernannahme bewiesen und das Testbed „Inktest" wird zum
+Produkt **Skribo** ausgebaut. Was über die reine Ink-Fläche hinaus im Code liegt
+(Modell, Werkzeuge, `SkriboSync`), ist Prototyp-Scaffolding, noch nicht
+produktionsreif.
 
-- [ ] **M0 — Board-Client-Prototyp:** Ink-Engine, Werkzeuge, Papierstile,
-      Tuning-/Metrics-Testbed *(weitgehend vorhanden)*
-- [ ] **M1 — Dokumentmodell & Navigation:** Abschnitte/Seiten/Unterseiten,
-      Umbenennen/Löschen, Persistenz *(vorhanden)*
-- [ ] **M2 — WebDAV-Sync Board → Server:** Push des lokalen Dokuments ins
-      Skribo-Schema *(`SkriboSync` vorhanden — Umfang prüfen)*
-- [ ] **M3 — Bidirektionale Sync:** Server → Board (Pull), Merge-/Konfliktstrategie,
-      Annotationen getrennt von Basis
-- [ ] **M4 — Desktop-Planungs-Client:** OneNote-artige Oberfläche am PC, gleiches
+## 4. Milestones
+
+> **Entwurf** — bitte Reihenfolge/Umfang anpassen.
+
+- [x] **M0 — Latenz-Machbarkeit (PoC):** rudimentärer Ink-Prototyp live am
+      CTOUCH-Board getestet, Stift-Latenz tauglich → **bestanden, Greenlight**
+- [ ] **M1 — Board-Client produktionsreif:** Ink-Engine, Werkzeuge (Pen/Marker/
+      Linie/Text/Bild/Radierer), Papierstile stabil und bedienbar
+- [ ] **M2 — Dokumentmodell & Navigation:** Abschnitte/Seiten/Unterseiten,
+      Umbenennen/Löschen, robuste lokale Persistenz
+- [ ] **M3 — WebDAV-Sync Board → Server:** Push ins offene Skribo-Schema
+      (`SkriboSync` ausbauen/härten)
+- [ ] **M4 — Bidirektionale Sync:** Server → Board (Pull), Merge-/Konfliktstrategie,
+      Annotationen getrennt von der Basis
+- [ ] **M5 — Desktop-Planungs-Client:** OneNote-artige Oberfläche am PC, gleiches
       Schema, gleicher WebDAV-Server
-- [ ] **M5 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die
+- [ ] **M6 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die
       schuleigenen CTOUCH-Boards, Betrieb
 
-## 4. Rahmenbedingungen
+## 5. Rahmenbedingungen
 
 - **Zielgeräte:** CTOUCH-Boards (Android, groß, landscape, Stift/Finger) — primär;
   Android-Tablets sekundär.
@@ -70,7 +81,7 @@ selbst hostbar, Datenhoheit bei der Schule.
 - **Lizenz:** GPLv3 (offener Quellcode).
 - **Datenhaltung:** eigener WebDAV-Server, offenes JSON-Schema, kein Cloud-Zwang.
 
-## 5. Offene Punkte / To decide
+## 6. Offene Punkte / To decide
 
 - Desktop-Client: Plattform/Tech-Stack (Web? Kotlin Multiplatform? Electron?),
   Verzeichnisstruktur im Monorepo (`android/` + `desktop/`?).
