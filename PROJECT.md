@@ -38,11 +38,37 @@ selbst hostbar, Datenhoheit bei der Schule.
 - **Datenmodell** (`app/.../Model.kt`): Abschnitte → Seiten → Unterseiten;
   Werkzeuge Pen/Highlighter/Line/Text/Image/Eraser; Papierstile
   Blank/Lined/Grid/Dots/Legal.
-- **Sync** (`app/.../SkriboSync.kt`): WebDAV via OkHttp auf das Skribo-On-Disk-Schema
-  `<section.webdavPath>/<page.title>/skribo/base.json` +
-  `.../annotations/<year>.json`.
+- **Sync** (`app/.../SkriboSync.kt`): WebDAV via OkHttp, HTTP Basic Auth. Push-only
+  (Pull/Bidirektional = M4). Details siehe **§2a**.
 - **Ink-Engine** (`InkView.kt`, `Stroke.kt`): Glättung (Bézier / Catmull-Rom / WMA),
   Motion-Prediction, umfangreiches Tuning-/Metrics-Panel für Latenz-Benchmarks.
+
+## 2a. Infrastruktur & WebDAV-Pfad-Konvention
+
+**Server:** Synology DiskStation (DSM), WebDAV-Server-Paket, HTTPS + HTTP Basic Auth.
+Server-URL, Benutzer/Passwort und aktives Schuljahr sind Geräte-Einstellungen
+(`Prefs` — nicht im Repo). Verbindungstest per `PROPFIND`, Verzeichnisse per `MKCOL`,
+Dateien per `PUT`.
+
+**Pfad-Schema** (jede Seite/Unterseite wird zu einem Verzeichnis — Titel müssen
+dateisystem-tauglich sein):
+
+```
+<webdavServer>/<section.webdavPath>/<page>/skribo/base.json
+<webdavServer>/<section.webdavPath>/<page>/skribo/annotations/<schuljahr>.json
+<webdavServer>/<section.webdavPath>/<page>/skribo/<unterseite>/base.json
+<webdavServer>/<section.webdavPath>/<page>/skribo/<unterseite>/annotations/<schuljahr>.json
+```
+
+- `section.webdavPath` — pro Abschnitt konfiguriert; leer ⇒ Abschnitt bleibt lokal.
+- **`base.json`** (`type: skribo-base`, `schemaVersion: 1`): Titel, Papierstil,
+  Texte, Bilder — die *stabile* Seitenbasis.
+- **`annotations/<schuljahr>.json`** (`type: skribo-annotations`): die *jahresbezogenen*
+  Striche/Annotationen. So kann dieselbe Basis über mehrere Schuljahre neu
+  annotiert werden, ohne die Vorlage zu überschreiben.
+
+> Konvention wichtig für den Desktop-Client (M5): Er muss **dasselbe** Schema
+> lesen/schreiben. Ändert sich das Layout, `schemaVersion` erhöhen.
 
 ## 3. Stand heute
 
@@ -80,7 +106,8 @@ produktionsreif.
 - **Distribution:** intern, APK direkt auf die Boards (kein Store).
 - **Lizenz:** GPLv3 (offener Quellcode).
 - **Datenhaltung:** eigener WebDAV-Server, offenes JSON-Schema, kein Cloud-Zwang.
-  **WebDAV läuft bereits auf dem eigenen NAS** (eingerichtet, einsatzbereit).
+  **WebDAV läuft bereits auf einer Synology DiskStation** (DSM, WebDAV-Server-Paket)
+  — eingerichtet und einsatzbereit. Pfad-/Datenlayout siehe §2a.
 
 ## 6. Getroffene Entscheidungen
 
