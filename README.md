@@ -1,6 +1,6 @@
-# Skribo (Inktest)
+# Skribo
 
-**Handschrift-App für Unterrichtsplanung — OneNote-artig, mit bidirektionaler
+**Handschrift-System für Unterrichtsplanung — OneNote-artig, mit bidirektionaler
 WebDAV-Sync zwischen Desktop-PC und CTOUCH-Boards.**
 
 Skribo unterstützt den Workflow von Lehrkräften: **Unterrichtsplanung am Desktop-PC**
@@ -9,10 +9,18 @@ beide Seiten bleiben über **WebDAV bidirektional synchron**. Was am PC vorberei
 wird, liegt live auf dem Board; was im Unterricht am Board handschriftlich ergänzt
 wird, fließt zurück.
 
-Diese Android-App ist der Board-/Tablet-Client: eine schnelle, latenzarme Ink-Oberfläche
-(schreiben mit dem Stift, organisiert in Abschnitten und Seiten). Der Projektname
-**Inktest** stammt vom eingebauten Tuning-/Metrics-Testbed, mit dem Rendering-Performance
-und Stift-Latenz auf den Boards systematisch vermessen werden.
+## Komponenten (Monorepo)
+
+Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV teilen:
+
+| Client | Verzeichnis | Zweck | Status |
+|--------|-------------|-------|--------|
+| **Board-Client** (Android) | [`app/`](./app/) | Ink-Oberfläche am CTOUCH-Board / Tablet | in Entwicklung |
+| **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC | geplant |
+
+> **Arbeitstitel „Inktest":** Der Repo-/Ordnername stammt vom eingebauten Tuning-/Metrics-Testbed,
+> mit dem Rendering-Performance und Stift-Latenz auf den Boards vermessen werden.
+> Produktname ist **Skribo**.
 
 ## Warum
 
@@ -23,7 +31,7 @@ nicht offen über selbst gehostetes WebDAV. Skribo setzt genau hier an — eigen
 offenes On-Disk-Schema, Sync über den eigenen WebDAV-Server, Board als
 gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
 
-## Features
+## Features (Board-Client)
 
 - **Ink-Engine** — druck-/geschwindigkeitsabhängige Striche, Motion-Prediction
   (`MotionEventPredictor`) für geringe Latenz
@@ -45,15 +53,20 @@ gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
 | Sync           | WebDAV über OkHttp |
 | Min / Target   | `minSdk 24`, `targetSdk 34`, `compileSdk 34` |
 
-## Build
+## Build (Board-Client)
 
 ```bash
 ./gradlew :app:assembleDebug     # APK bauen
-./gradlew :app:installDebug      # auf angeschlossenem Gerät/Emulator installieren
+./gradlew :app:installDebug      # auf angeschlossenem Board/Gerät/Emulator installieren
 ```
 
 > Voraussetzung: Android SDK. Lokale Pfade (`sdk.dir`, JDK) stehen in
 > `local.properties` — diese Datei ist bewusst **nicht** eingecheckt.
+
+## Distribution
+
+Interner Einsatz an der eigenen Schule — Verteilung der APK direkt auf die
+CTOUCH-Boards (kein App-Store).
 
 ## Mockups
 
@@ -62,7 +75,8 @@ liegen als HTML unter [`mockups/`](./mockups/).
 
 ## Status
 
-🚧 In Entwicklung.
+🚧 In Entwicklung. Roadmap, Milestones und voller Projektkontext siehe
+[`PROJECT.md`](./PROJECT.md).
 
 ## Lizenz
 
