@@ -9,6 +9,10 @@ import java.io.File
  */
 object AppPaths {
     fun documentRoot(): File {
+        // Erlaubt einen abweichenden Ablageort — etwa auf einem anderen
+        // Laufwerk, für ein zweites Dokument oder zum gefahrlosen Ausprobieren.
+        System.getenv(HOME_ENV)?.takeIf { it.isNotBlank() }?.let { return File(it) }
+
         val os = System.getProperty("os.name").lowercase()
         val home = File(System.getProperty("user.home"))
         val base = when {
@@ -24,4 +28,7 @@ object AppPaths {
 
     /** Geräte-Einstellungen (zuletzt geöffneter Abschnitt/Seite, …). */
     fun settingsFile(): File = File(documentRoot(), "desktop.properties")
+
+    /** Umgebungsvariable, die den Ablageort überschreibt. */
+    const val HOME_ENV = "SKRIBO_HOME"
 }

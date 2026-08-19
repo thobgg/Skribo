@@ -11,9 +11,12 @@ import com.inktest.EditLinkBox
 import com.inktest.EditTextBoxContent
 import com.inktest.ImageBox
 import com.inktest.LinkBox
+import com.inktest.MoveBox
 import com.inktest.Page
 import com.inktest.PaperStyle
+import com.inktest.PositionedBox
 import com.inktest.RemoveImageBox
+import com.inktest.ResizeImageBox
 import com.inktest.RemoveLinkBox
 import com.inktest.RemoveTextBox
 import com.inktest.Section
@@ -231,6 +234,57 @@ class DocumentController(
         if (page.redo()) repository.savePage(page)
     }
 
+    // ---------------- Verschieben und Größe ändern ----------------
+
+    /**
+     * Setzt die Position während des Ziehens **ohne** Undo-Schritt. Erst
+     * [commitMove] macht daraus eine Aktion — sonst läge nach einer einzigen
+     * Zugbewegung ein Undo-Schritt je Mausbewegung auf dem Stapel.
+     */
+    fun dragBoxTo(box: PositionedBox, x: Float, y: Float) {
+        box.x = x
+        box.y = y
+        revision++
+    }
+
+    /** Schließt eine Zugbewegung ab und macht sie als *ein* Schritt rückgängig-machbar. */
+    fun commitMove(page: Page, box: PositionedBox, startX: Float, startY: Float) {
+        if (box.x == startX && box.y == startY) return
+        page.applyAction(MoveBox(box, startX, startY, box.x, box.y))
+        revision++
+        repository.savePage(page)
+    }
+
+    /** Größenänderung während des Ziehens, ebenfalls ohne Undo-Schritt. */
+    fun dragImageSize(box: ImageBox, x: Float, y: Float, width: Float, height: Float) {
+        box.x = x
+        box.y = y
+        box.width = width.coerceAtLeast(MIN_IMAGE_SIZE_PT)
+        box.height = height.coerceAtLeast(MIN_IMAGE_SIZE_PT)
+        revision++
+    }
+
+    fun commitImageResize(
+        page: Page,
+        box: ImageBox,
+        startX: Float,
+        startY: Float,
+        startWidth: Float,
+        startHeight: Float,
+    ) {
+        if (box.x == startX && box.y == startY &&
+            box.width == startWidth && box.height == startHeight
+        ) return
+        page.applyAction(
+            ResizeImageBox(
+                box, startX, startY, startWidth, startHeight,
+                box.x, box.y, box.width, box.height,
+            )
+        )
+        revision++
+        repository.savePage(page)
+    }
+
     fun flush() = repository.flush()
 
     /** Wo importierte Bilder und gerenderte PDF-Seiten liegen. */
@@ -242,6 +296,11 @@ class DocumentController(
      * Dokumentstruktur. Seiteninhalte speichern die Aufrufer selbst — nicht
      * jede Änderung betrifft eine Seite.
      */
+    private companion object {
+        /** Kleiner ließe sich ein Bild nicht mehr greifen. */
+        const val MIN_IMAGE_SIZE_PT = 24f
+    }
+
     private inline fun edit(block: () -> Unit) {
         block()
         revision++

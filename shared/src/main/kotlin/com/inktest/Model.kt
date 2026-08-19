@@ -101,12 +101,12 @@ class EditLinkBox(
 
 class TextBox(
     val id: String = UUID.randomUUID().toString(),
-    var x: Float,
-    var y: Float,
+    override var x: Float,
+    override var y: Float,
     var content: String,
     var fontSize: Float = 18f,
     var color: Int = 0xFF0F1729.toInt(),
-) {
+) : PositionedBox {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("x", x.toDouble())
@@ -130,12 +130,12 @@ class TextBox(
 
 class ImageBox(
     val id: String = UUID.randomUUID().toString(),
-    var x: Float,
-    var y: Float,
+    override var x: Float,
+    override var y: Float,
     var width: Float,
     var height: Float,
     var assetPath: String,
-) {
+) : PositionedBox {
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("x", x.toDouble())

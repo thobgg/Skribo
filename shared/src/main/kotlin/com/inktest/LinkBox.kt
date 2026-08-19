@@ -11,12 +11,12 @@ import java.util.UUID
  */
 class LinkBox(
     val id: String = UUID.randomUUID().toString(),
-    var x: Float,
-    var y: Float,
+    override var x: Float,
+    override var y: Float,
     var url: String,
     /** Anzeigetext; leer ⇒ die URL selbst wird gezeigt. */
     var title: String = "",
-) {
+) : PositionedBox {
     /** Was auf der Seite steht. */
     val label: String get() = title.ifBlank { url }
 

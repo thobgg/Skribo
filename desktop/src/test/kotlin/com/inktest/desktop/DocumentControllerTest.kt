@@ -1,6 +1,8 @@
 package com.inktest.desktop
 
 import com.inktest.Document
+import com.inktest.ImageBox
+import com.inktest.PositionedBox
 import com.inktest.DocumentStore
 import com.inktest.PaperStyle
 import java.io.File
@@ -189,6 +191,94 @@ class DocumentControllerTest {
 
         assertSame(c.document.sections.first(), c.activeSection)
         assertNotNull(c.activePage)
+    }
+
+    @Test
+    fun `eine zugbewegung ergibt genau einen undo-schritt`() {
+        val (c, _) = controller()
+        val page = c.activePage!!
+        c.addTextBox(page, 100f, 100f, "Merksatz")
+        val box = page.textBoxes.single()
+
+        // So läuft es beim Ziehen: viele kleine Schritte, am Ende ein Commit.
+        val startX = box.x
+        val startY = box.y
+        repeat(20) { c.dragBoxTo(box, box.x + 5f, box.y + 2f) }
+        c.commitMove(page, box, startX, startY)
+
+        assertEquals(200f, box.x)
+        assertEquals(140f, box.y)
+
+        // Ein einziges Undo muss die ganze Bewegung zurücknehmen.
+        c.undo(page)
+        assertEquals(100f, box.x)
+        assertEquals(100f, box.y)
+
+        c.redo(page)
+        assertEquals(200f, box.x)
+    }
+
+    @Test
+    fun `zugbewegung ohne ortsaenderung erzeugt keinen undo-schritt`() {
+        val (c, _) = controller()
+        val page = c.activePage!!
+        c.addTextBox(page, 50f, 50f, "Text")
+        val box = page.textBoxes.single()
+
+        c.commitMove(page, box, box.x, box.y)
+
+        // Nur das Anlegen darf auf dem Stapel liegen; ein Undo entfernt den Text.
+        c.undo(page)
+        assertTrue(page.textBoxes.isEmpty())
+    }
+
+    @Test
+    fun `bildgroesse aendern ist als ein schritt rueckgaengig-machbar`() {
+        val (c, _) = controller()
+        val page = c.activePage!!
+        val box = ImageBox(x = 10f, y = 20f, width = 200f, height = 100f, assetPath = "assets/a.png")
+        c.addImageBox(page, box)
+
+        val (sx, sy, sw, sh) = listOf(box.x, box.y, box.width, box.height)
+        repeat(10) { c.dragImageSize(box, box.x, box.y, box.width + 10f, box.height + 5f) }
+        c.commitImageResize(page, box, sx, sy, sw, sh)
+
+        assertEquals(300f, box.width)
+        assertEquals(150f, box.height)
+
+        c.undo(page)
+        assertEquals(200f, box.width)
+        assertEquals(100f, box.height)
+    }
+
+    @Test
+    fun `bild laesst sich nicht unter die mindestgroesse schrumpfen`() {
+        val (c, _) = controller()
+        val box = ImageBox(x = 0f, y = 0f, width = 200f, height = 100f, assetPath = "assets/a.png")
+
+        c.dragImageSize(box, 0f, 0f, -500f, -500f)
+
+        assertTrue(box.width > 0f, "Breite muss positiv bleiben")
+        assertTrue(box.height > 0f, "Höhe muss positiv bleiben")
+    }
+
+    @Test
+    fun `verschieben gilt fuer text bild und link gleichermassen`() {
+        val (c, _) = controller()
+        val page = c.activePage!!
+        c.addTextBox(page, 0f, 0f, "T")
+        c.addLinkBox(page, 0f, 0f, "https://youtu.be/dQw4w9WgXcQ", "V")
+        c.addImageBox(page, ImageBox(x = 0f, y = 0f, width = 10f, height = 10f, assetPath = "a"))
+
+        val boxes = listOf<PositionedBox>(
+            page.textBoxes.single(), page.linkBoxes.single(), page.imageBoxes.single(),
+        )
+        boxes.forEach { c.dragBoxTo(it, 42f, 43f) }
+
+        boxes.forEach {
+            assertEquals(42f, it.x)
+            assertEquals(43f, it.y)
+        }
     }
 
     @Test

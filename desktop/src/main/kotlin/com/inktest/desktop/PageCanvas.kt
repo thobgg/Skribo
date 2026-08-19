@@ -2,6 +2,7 @@ package com.inktest.desktop
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +14,8 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
 import androidx.compose.ui.graphics.drawscope.scale
@@ -22,10 +25,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.inktest.ImageBox
 import com.inktest.LinkBox
 import com.inktest.Page
 import com.inktest.PageFormat
 import com.inktest.PaperStyle
+import com.inktest.PositionedBox
 import com.inktest.TextBox
 import org.jetbrains.skia.Font
 import org.jetbrains.skia.FontMgr
@@ -41,42 +46,121 @@ private val defaultTypeface: Typeface by lazy {
     FontMgr.default.legacyMakeTypeface("", FontStyle.NORMAL) ?: Typeface.makeEmpty()
 }
 
-/** Was auf der Seite angeklickt wurde. */
-sealed interface CanvasTarget {
-    data class Text(val box: TextBox) : CanvasTarget
-    data class Link(val box: LinkBox) : CanvasTarget
-    /** Freie Stelle — Koordinaten in Seitenpunkten. */
-    data class Empty(val x: Float, val y: Float) : CanvasTarget
-}
-
 /**
  * Zeigt eine Seite so, wie sie am Board aussieht: Hintergrund (gerenderte
- * PDF-Seite/Folie) oder Papierraster, darüber Striche, Texte und Links.
+ * PDF-Seite/Folie) oder Papierraster, darüber Bilder, Striche, Texte und Links.
  *
  * Seiten mit Format werden **als Ganzes eingepasst** und behalten ihr
  * Seitenverhältnis. Alle Inhalte liegen in Seitenpunkten, deshalb sitzt eine am
  * Board geschriebene Annotation hier an derselben Stelle — unabhängig von der
  * Fenstergröße.
+ *
+ * Bedienung: Klick wählt aus, Ziehen verschiebt, der Griff unten rechts an
+ * einem ausgewählten Bild ändert die Größe. Ein Klick ins Leere legt Text an.
  */
 @Composable
 fun PageCanvas(
     page: Page?,
     revision: Int,
+    selected: PositionedBox?,
+    controller: DocumentController,
     backgroundLoader: (String) -> ImageBitmap?,
-    onTarget: (CanvasTarget) -> Unit,
+    onSelect: (PositionedBox?) -> Unit,
+    onOpen: (PositionedBox) -> Unit,
+    onEmptyClick: (Float, Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(modifier.background(Color(0xFFEFEFEF)).padding(24.dp)) {
         Canvas(
             Modifier
                 .fillMaxSize()
-                .pointerInput(page, revision) {
-                    detectTapGestures { offset ->
-                        val p = page ?: return@detectTapGestures
-                        val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
-                        val pt = layout.toPage(offset) ?: return@detectTapGestures
-                        onTarget(hitTest(p, pt))
-                    }
+                // Bewusst NUR auf `page` gekeyed: käme `revision` dazu, würde
+                // jede Positionsänderung den Erkenner neu starten und die
+                // laufende Zugbewegung abbrechen.
+                .pointerInput(page) {
+                    detectTapGestures(
+                        onDoubleTap = { offset ->
+                            val p = page ?: return@detectTapGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
+                            val pt = layout.toPage(offset) ?: return@detectTapGestures
+                            hitBox(p, pt)?.let(onOpen)
+                        },
+                        onTap = { offset ->
+                            val p = page ?: return@detectTapGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
+                            val pt = layout.toPage(offset) ?: return@detectTapGestures
+                            val hit = hitBox(p, pt)
+                            if (hit != null) onSelect(hit)
+                            else {
+                                onSelect(null)
+                                onEmptyClick(pt.x, pt.y)
+                            }
+                        },
+                    )
+                }
+                .pointerInput(page) {
+                    var target: PositionedBox? = null
+                    var resizing = false
+                    var startX = 0f
+                    var startY = 0f
+                    var startWidth = 0f
+                    var startHeight = 0f
+
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val p = page ?: return@detectDragGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
+                            val pt = layout.toPage(offset) ?: return@detectDragGestures
+
+                            val sel = selected
+                            resizing = sel is ImageBox && resizeHandle(sel, layout).contains(pt)
+                            target = if (resizing) sel else hitBox(p, pt)
+
+                            target?.let { box ->
+                                startX = box.x
+                                startY = box.y
+                                if (box is ImageBox) {
+                                    startWidth = box.width
+                                    startHeight = box.height
+                                }
+                                if (!resizing) onSelect(box)
+                            }
+                        },
+                        onDrag = { change, amount ->
+                            val p = page ?: return@detectDragGestures
+                            val box = target ?: return@detectDragGestures
+                            change.consume()
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
+                            val dx = amount.x / layout.scale
+                            val dy = amount.y / layout.scale
+                            if (resizing && box is ImageBox) {
+                                controller.dragImageSize(
+                                    box, box.x, box.y, box.width + dx, box.height + dy,
+                                )
+                            } else {
+                                controller.dragBoxTo(box, box.x + dx, box.y + dy)
+                            }
+                        },
+                        onDragEnd = {
+                            val p = page
+                            val box = target
+                            if (p != null && box != null) {
+                                if (resizing && box is ImageBox) {
+                                    controller.commitImageResize(
+                                        p, box, startX, startY, startWidth, startHeight,
+                                    )
+                                } else {
+                                    controller.commitMove(p, box, startX, startY)
+                                }
+                            }
+                            target = null
+                            resizing = false
+                        },
+                        onDragCancel = {
+                            target = null
+                            resizing = false
+                        },
+                    )
                 }
         ) {
             @Suppress("UNUSED_EXPRESSION") revision
@@ -95,9 +179,11 @@ fun PageCanvas(
                 scale(layout.scale, Offset.Zero) {
                     val bg = p.background?.let { backgroundLoader(it.assetPath) }
                     if (bg != null) drawBackground(bg, layout) else drawPaper(p.paperStyle, layout)
+                    drawImageBoxes(p, backgroundLoader)
                     drawStrokes(p)
                     drawTextBoxes(p)
                     drawLinkBoxes(p)
+                    selected?.let { drawSelection(it, layout) }
                 }
             }
         }
@@ -149,11 +235,21 @@ private fun layoutFor(page: Page, availW: Float, availH: Float): PageLayout {
     )
 }
 
-private fun hitTest(page: Page, pt: Offset): CanvasTarget {
-    // Von oben nach unten: zuletzt Angelegtes liegt oben.
-    page.linkBoxes.lastOrNull { linkBounds(it).contains(pt) }?.let { return CanvasTarget.Link(it) }
-    page.textBoxes.lastOrNull { textBounds(it).contains(pt) }?.let { return CanvasTarget.Text(it) }
-    return CanvasTarget.Empty(pt.x, pt.y)
+// ---------------- Treffer und Umrisse ----------------
+
+/** Von oben nach unten prüfen: zuletzt Gezeichnetes liegt oben. */
+private fun hitBox(page: Page, pt: Offset): PositionedBox? {
+    page.linkBoxes.lastOrNull { linkBounds(it).contains(pt) }?.let { return it }
+    page.textBoxes.lastOrNull { textBounds(it).contains(pt) }?.let { return it }
+    page.imageBoxes.lastOrNull { imageBounds(it).contains(pt) }?.let { return it }
+    return null
+}
+
+private fun boundsOf(box: PositionedBox): Rect = when (box) {
+    is TextBox -> textBounds(box)
+    is ImageBox -> imageBounds(box)
+    is LinkBox -> linkBounds(box)
+    else -> Rect(box.x, box.y, box.x, box.y)
 }
 
 private fun textBounds(box: TextBox): Rect {
@@ -166,6 +262,9 @@ private fun textBounds(box: TextBox): Rect {
     )
 }
 
+private fun imageBounds(box: ImageBox): Rect =
+    Rect(box.x, box.y, box.x + box.width, box.y + box.height)
+
 private fun linkBounds(box: LinkBox): Rect {
     val font = Font(defaultTypeface, LINK_FONT_SIZE)
     val width = font.measureTextWidth(box.label)
@@ -177,10 +276,22 @@ private fun linkBounds(box: LinkBox): Rect {
     )
 }
 
+/**
+ * Griff unten rechts zum Ändern der Bildgröße. Er wird in Bildschirmpixeln
+ * bemessen und zurückgerechnet, damit er bei jedem Zoom gleich gut greifbar
+ * bleibt.
+ */
+private fun resizeHandle(box: ImageBox, layout: PageLayout): Rect {
+    val size = HANDLE_PX / layout.scale
+    val b = imageBounds(box)
+    return Rect(b.right - size, b.bottom - size, b.right + size, b.bottom + size)
+}
+
 private const val LINK_FONT_SIZE = 15f
 private const val LINK_PADDING = 8f
 /** Platz links für das Abspiel-Dreieck. */
 private const val LINK_TEXT_LEFT = 22f
+private const val HANDLE_PX = 7f
 
 // ---------------- Zeichnen ----------------
 
@@ -197,6 +308,28 @@ private fun DrawScope.drawBackground(image: ImageBitmap, layout: PageLayout) {
         dstOffset = IntOffset.Zero,
         dstSize = IntSize(layout.widthPt.toInt(), layout.heightPt.toInt()),
     )
+}
+
+private fun DrawScope.drawImageBoxes(page: Page, loader: (String) -> ImageBitmap?) {
+    page.imageBoxes.forEach { ib ->
+        val bmp = loader(ib.assetPath)
+        if (bmp == null) {
+            // Platzhalter statt Lücke — sonst wirkt die Seite kaputt.
+            drawRect(
+                color = Color(0xFFE0E0E0),
+                topLeft = Offset(ib.x, ib.y),
+                size = Size(ib.width, ib.height),
+            )
+            return@forEach
+        }
+        drawImage(
+            image = bmp,
+            srcOffset = IntOffset.Zero,
+            srcSize = IntSize(bmp.width, bmp.height),
+            dstOffset = IntOffset(ib.x.toInt(), ib.y.toInt()),
+            dstSize = IntSize(ib.width.toInt(), ib.height.toInt()),
+        )
+    }
 }
 
 private fun DrawScope.drawPaper(style: PaperStyle, layout: PageLayout) {
@@ -284,7 +417,7 @@ private fun DrawScope.drawLinkBoxes(page: Page) {
         val h = LINK_FONT_SIZE * 0.55f
         val left = bounds.left + LINK_PADDING
         drawPath(
-            path = androidx.compose.ui.graphics.Path().apply {
+            path = Path().apply {
                 moveTo(left, cy - h / 2f)
                 lineTo(left + h * 0.9f, cy)
                 lineTo(left, cy + h / 2f)
@@ -300,6 +433,31 @@ private fun DrawScope.drawLinkBoxes(page: Page) {
             bounds.top + LINK_FONT_SIZE * 1.15f,
             font,
             SkiaPaint().apply { color = accentArgb },
+        )
+    }
+}
+
+/** Auswahlrahmen; bei Bildern zusätzlich der Griff zum Vergrößern. */
+private fun DrawScope.drawSelection(box: PositionedBox, layout: PageLayout) {
+    val b = boundsOf(box).inflate(3f)
+    val accent = Color(0xFF1565C0)
+    drawRect(
+        color = accent,
+        topLeft = Offset(b.left, b.top),
+        size = Size(b.width, b.height),
+        style = DrawStroke(
+            width = 1.5f / layout.scale,
+            pathEffect = PathEffect.dashPathEffect(
+                floatArrayOf(6f / layout.scale, 4f / layout.scale)
+            ),
+        ),
+    )
+    if (box is ImageBox) {
+        val h = resizeHandle(box, layout)
+        drawRect(
+            color = accent,
+            topLeft = Offset(h.left, h.top),
+            size = Size(h.width, h.height),
         )
     }
 }

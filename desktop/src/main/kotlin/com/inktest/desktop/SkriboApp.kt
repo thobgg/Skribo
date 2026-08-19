@@ -36,10 +36,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.inktest.ImageBox
 import com.inktest.LinkBox
 import com.inktest.Page
 import com.inktest.PageFormat
 import com.inktest.PaperStyle
+import com.inktest.PositionedBox
 import com.inktest.Section
 import com.inktest.TextBox
 import kotlinx.coroutines.Dispatchers
@@ -54,11 +56,16 @@ import kotlinx.coroutines.withContext
  */
 @Composable
 fun SkriboApp(controller: DocumentController, assets: AssetCache) {
-    // Löst das Neuzeichnen aus, wenn sich am (Compose-freien) Modell etwas ändert.
-    @Suppress("UNUSED_EXPRESSION") controller.revision
+    // Jeder Teilbereich bekommt `revision` als Parameter — nicht nur zur Zierde:
+    // Compose überspringt seit „strong skipping" auch instabile Parameter, wenn
+    // sie referenzgleich sind. Das Modell mutiert aber *in* denselben Objekten,
+    // also bliebe etwa der Rückgängig-Knopf ausgegraut, obwohl es etwas
+    // rückgängig zu machen gibt. Der wechselnde Int erzwingt das Neuzeichnen.
 
     var dialog by remember { mutableStateOf<AppDialog?>(null) }
     var busy by remember { mutableStateOf<String?>(null) }
+    /** Ausgewähltes Element auf der Seite; beim Seitenwechsel zurückgesetzt. */
+    var selected by remember(controller.activePage) { mutableStateOf<PositionedBox?>(null) }
     val scope = rememberCoroutineScope()
 
     /** Import läuft im Hintergrund — Rendern eines PDFs dauert spürbar. */
@@ -95,6 +102,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column {
             SectionTabs(
+                revision = controller.revision,
                 sections = controller.document.sections,
                 active = controller.activeSection,
                 onSelect = controller::selectSection,
@@ -107,6 +115,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
             Row(Modifier.fillMaxSize()) {
                 Column(Modifier.width(260.dp).fillMaxHeight()) {
                     PageList(
+                        revision = controller.revision,
                         pages = controller.activeSection?.pages.orEmpty(),
                         active = controller.activePage,
                         onSelect = controller::selectPage,
@@ -125,6 +134,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                 VerticalDivider()
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     PageToolbar(
+                        revision = controller.revision,
                         page = controller.activePage,
                         onPaperStyle = { style ->
                             controller.activePage?.let { controller.setPaperStyle(it, style) }
@@ -140,14 +150,18 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         PageCanvas(
                             page = controller.activePage,
                             revision = controller.revision,
+                            selected = selected,
+                            controller = controller,
                             backgroundLoader = assets::load,
-                            onTarget = { target ->
-                                dialog = when (target) {
-                                    is CanvasTarget.Text -> AppDialog.EditText(target.box)
-                                    is CanvasTarget.Link -> AppDialog.EditLink(target.box)
-                                    is CanvasTarget.Empty -> AppDialog.NewText(target.x, target.y)
+                            onSelect = { selected = it },
+                            onOpen = { box ->
+                                dialog = when (box) {
+                                    is TextBox -> AppDialog.EditText(box)
+                                    is LinkBox -> AppDialog.EditLink(box)
+                                    else -> null
                                 }
                             },
+                            onEmptyClick = { x, y -> dialog = AppDialog.NewText(x, y) },
                             modifier = Modifier.fillMaxSize(),
                         )
                         busy?.let { message ->
@@ -322,6 +336,7 @@ private const val LINK_DROP_Y = 40f
 
 @Composable
 private fun SectionTabs(
+    revision: Int,
     sections: List<Section>,
     active: Section?,
     onSelect: (Section) -> Unit,
@@ -377,6 +392,7 @@ private fun SectionTabs(
 
 @Composable
 private fun PageList(
+    revision: Int,
     pages: List<Page>,
     active: Page?,
     onSelect: (Page) -> Unit,
@@ -443,6 +459,7 @@ private fun PageList(
 
 @Composable
 private fun PageToolbar(
+    revision: Int,
     page: Page?,
     onPaperStyle: (PaperStyle) -> Unit,
     onUndo: () -> Unit,
