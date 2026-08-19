@@ -199,19 +199,18 @@ produktionsreif.
 
 - **Sync-Ziel: eigenes NAS statt OneDrive.** Gegengeprüft am 19.08.2026 — das
   Ergebnis bleibt, die Begründung ist eine andere:
-  1. **Die Anmeldung am Board.** MS Auth am CTOUCH hakelte in der Praxis immer
-     extrem. Ein Speicherort, der genau diese Anmeldung erzwingt, wäre die
-     falsche Wahl. WebDAV mit HTTP Basic Auth wird einmal eingetragen und
-     läuft — kein interaktiver Login, kein ablaufendes Token, kein
-     persönliches Konto auf einem Gerät, vor dem der ganze Kurs steht.
-  2. **Aufwand.** OneDrive kann kein brauchbares WebDAV; es bräuchte die
-     Graph-API mit MSAL-Anmeldung in *beiden* Clients, oft samt Zustimmung
-     der Administration.
+  Tragend ist allein der **Aufwand**: OneDrive kann kein brauchbares WebDAV;
+  es bräuchte die Graph-API mit MSAL-Anmeldung in *beiden* Clients, oft samt
+  Zustimmung der Administration. Gegen HTTP Basic Auth auf einer bereits
+  laufenden Synology ist das ein Vielfaches an Arbeit.
 
-  **Nicht** tragend ist das Datensouveränitäts-Argument: Es geht um
-  Berufliches, nicht Privates, und an der Schule läuft ohnehin Teams/MS 365.
-  Material im Tenant der Schule zu halten wäre grundsätzlich vertretbar — es
-  scheitert an 1. und 2., nicht am Prinzip.
+  **Nicht** tragend sind zwei Argumente, die zunächst plausibel schienen:
+  - *Datensouveränität* — es geht um Berufliches, nicht Privates, und an der
+    Schule läuft ohnehin Teams/MS 365.
+  - *Anmeldung am Board* — die MS-Anmeldung am CTOUCH ist nur einmalig
+    mühsam; danach läuft OneNote dort unproblematisch. Ausgeloggt wird nicht
+    (kein anderer Kollege nutzt OneNote nativ am Board), die App ist mit der
+    CTOUCH-PIN gesperrt.
 
   Der WebDAV-Server ist bereits eingerichtet.
 - **Zwei-Client-System in einem Monorepo** (Board + Desktop).
