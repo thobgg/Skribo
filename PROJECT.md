@@ -8,19 +8,39 @@
 
 ## 1. Motivation & Zielbild
 
-Lehrkräfte planen Unterricht am **Desktop-PC** und arbeiten im Klassenraum am
-**CTOUCH-Board** (großes Android-Touchdisplay). Für die Kombination aus
-strukturierter Planung *und* handschriftlichem Arbeiten am Board gibt es keine
-nahtlose, cloud-freie Lösung:
+**Der eigentliche Grund (festgehalten am 19.08.2026):**
 
-- **OneNote** bindet an Microsoft-Konten/Cloud; bidirektionale Sync Desktop ↔ Board
-  läuft nicht offen über selbst gehostetes WebDAV.
-- Reine Whiteboard-Apps am Board haben keine strukturierte Planungsseite am PC.
+> **OneNote gibt es für Linux nicht.** Der vollwertige Client ist Windows-only,
+> im Browser bleibt eine abgespeckte Fassung. Unterricht am eigenen Rechner
+> (Xubuntu) zu planen heißt also: entweder Windows benutzen oder ein anderes
+> Werkzeug. Dazu der Wunsch nach **so wenig Microsoft wie möglich**. Das ist
+> der Zweck des Projekts — nicht Latenz, nicht Datenschutz, nicht die
+> Verteilung an Schüler.
+
+Daraus folgt die Rangfolge: **Der Desktop-Client ist das Produkt**, das Board
+ergänzt ihn. Ein Skribo, das am Board glänzt, aber unter Linux nicht zum Planen
+taugt, verfehlt den Zweck.
+
+Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
+
+- **Wiederverwendung über Schuljahre.** In OneNote kopiert man Notizbücher oder
+  radiert die Tinte des Vorjahres weg; eine Trennung von Vorlage und
+  jahresbezogener Handschrift gibt es nicht. Skribo trennt beides (§2a) —
+  dieselbe Basis, je Schuljahr eine eigene Annotationsebene.
+
+**Was ausdrücklich NICHT das Ziel ist** (geklärt im Gespräch am 19.08.2026):
+
+- **Kein OneNote-Ersatz für die Schülerseite.** An der Schule laufen
+  Teams/MS 365 Education; Schüler bekommen Material über das
+  OneNote-Kursnotizbuch aufs Tablet oder öffnen es in GoodNotes. Das
+  funktioniert und bleibt. Skribos Brücke dorthin ist der **PDF-Export** —
+  das Format, das beide Wege lesen.
+- **Keine Latenz-Rettung.** OneNote schreibt am Board gut; der M0-Test belegte
+  nur, dass ein eigener Client schnell genug *sein kann*.
 
 **Gewählter Ansatz:** Zwei selbst gebaute Clients (Board + Desktop), die ein
 **offenes On-Disk-Schema** über einen **eigenen WebDAV-Server** teilen. Das Board
-ist gleichberechtigter Bearbeitungsort, nicht nur Anzeige. Kein Cloud-Zwang,
-selbst hostbar, Datenhoheit bei der Schule.
+ist gleichberechtigter Bearbeitungsort, nicht nur Anzeige.
 
 > **Leitbild Desktop-Client:** ehrlich gesagt ein **OneNote-Desktop-Klon — aber
 > mit weniger Müll**. OneNote ist ein über Jahre gereiftes Produkt — seine
@@ -169,9 +189,14 @@ produktionsreif.
 ## 6. Getroffene Entscheidungen
 
 - **Sync-Ziel: eigenes NAS statt OneDrive.** Abgewogen wurde OneDrive vs.
-  selbst gehostetes NAS-WebDAV; Wahl fiel auf das **NAS** — Datenhoheit,
-  kein Microsoft-Konto-/Cloud-Zwang, DSGVO-freundlich im Schulkontext. Der
-  WebDAV-Server ist bereits eingerichtet.
+  selbst gehostetes NAS-WebDAV; Wahl fiel auf das **NAS**. Begründung
+  nachgeschärft (19.08.2026): Das DSGVO-Argument trägt nur begrenzt, da an der
+  Schule ohnehin Teams/MS 365 läuft. Tragfähig sind zwei andere Gründe —
+  **der Tenant gehört der Schule, nicht dir** (bei Schulwechsel ist alles weg,
+  während ein mehrjähriges Vorbereitungsarchiv gerade überdauern soll), und
+  **OneDrive kann kein brauchbares WebDAV** (es bräuchte Graph-API mit
+  MSAL-Anmeldung in beiden Clients, oft mit Administrator-Zustimmung).
+  Der WebDAV-Server ist bereits eingerichtet.
 - **Zwei-Client-System in einem Monorepo** (Board + Desktop).
 - **Desktop-Stack: Compose Multiplatform (Kotlin).** (2026-08-19) Abgewogen
   gegen Qt/QML, Tauri und Electron. Ausschlaggebend: maximaler Code-Reuse
