@@ -23,9 +23,12 @@ ist gleichberechtigter Bearbeitungsort, nicht nur Anzeige. Kein Cloud-Zwang,
 selbst hostbar, Datenhoheit bei der Schule.
 
 > **Leitbild Desktop-Client:** ehrlich gesagt ein **OneNote-Desktop-Klon — aber
-> mit weniger Müll**. Genau die Funktionen, die für die Unterrichtsplanung
-> gebraucht werden, und nicht mehr. Kein Feature landet im Client, nur weil
-> OneNote es hat.
+> mit weniger Müll**. OneNote ist ein über Jahre gereiftes Produkt — seine
+> bewährten Konzepte und UX-Muster (Abschnitte/Seiten, freie Seitenfläche,
+> Medien-Einbindung, Ausdruck vs. Anhang, …) sind ausdrücklich die **Vorlage**
+> und werden übernommen, wo sie für die Unterrichtsplanung Sinn ergeben.
+> „Weniger Müll" meint das Drumherum: Konto-/Cloud-Zwang, Enterprise-Ballast
+> und Funktionen ohne Nutzen für diesen Einsatzzweck bleiben draußen.
 
 ## 2. Architektur
 
