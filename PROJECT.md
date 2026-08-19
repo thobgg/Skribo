@@ -84,26 +84,37 @@ produktionsreif.
 
 > **Entwurf** — bitte Reihenfolge/Umfang anpassen.
 
+> **Priorisierung (2026-08-19):** Für den echten Einsatz ist der **Desktop-Client
+> der Engpass**, nicht die Board-Politur — er wurde deshalb vorgezogen (jetzt M3/M4).
+> Vorgelagert ist der Toolchain-/Monorepo-Umbau (M2), weil Compose Multiplatform
+> Kotlin 2.x + Gradle 9 voraussetzt und das `shared/`-Modul die Basis beider
+> Clients wird.
+
 - [x] **M0 — Latenz-Machbarkeit (PoC):** rudimentärer Ink-Prototyp live am
       CTOUCH-Board getestet, Stift-Latenz tauglich → **bestanden, Greenlight**
-- [ ] **M1 — Board-Client produktionsreif:** Ink-Engine, Werkzeuge (Pen/Marker/
-      Linie/Text/Bild/Radierer), Papierstile stabil und bedienbar
-- [ ] **M2 — Dokumentmodell & Navigation:** Abschnitte/Seiten/Unterseiten,
-      Umbenennen/Löschen, robuste lokale Persistenz
-- [ ] **M3 — WebDAV-Sync Board → Server:** Push ins offene Skribo-Schema
-      (`SkriboSync` ausbauen/härten)
-- [ ] **M4 — Bidirektionale Sync:** Server → Board (Pull), Merge-/Konfliktstrategie,
-      Annotationen getrennt von der Basis
-- [ ] **M5 — Desktop-Planungs-Client:** OneNote-artige Oberfläche am PC, gleiches
-      Schema, gleicher WebDAV-Server
-- [ ] **M6 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die
+- [ ] **M1 — Board-Client Kernfunktionen:** Ink-Engine, Werkzeuge (Pen/Marker/
+      Linie/Text/Bild/Radierer), Papierstile stabil und bedienbar; Dokumentmodell
+      & Navigation (Abschnitte/Seiten/Unterseiten, Umbenennen/Löschen, robuste
+      lokale Persistenz)
+- [ ] **M2 — Toolchain & Shared-Modul:** Gradle 9.x / Kotlin 2.x / AGP 9.x;
+      Monorepo-Umbau zu `shared/` (Model, JSON-Schema, `SkriboSync`) +
+      `android/` + `desktop/` — Schema-Code existiert danach nur noch **einmal**
+- [ ] **M3 — Desktop-Client MVP (Compose Multiplatform):** OneNote-artige
+      Planungsoberfläche; liest/schreibt dasselbe Schema direkt via WebDAV;
+      Pakete für Linux (.deb), Windows 11 (.msi), macOS (.dmg) via `jpackage`
+- [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
+      Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
+- [ ] **M5 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die
       schuleigenen CTOUCH-Boards, Betrieb
 
 ## 5. Rahmenbedingungen
 
-- **Zielgeräte:** CTOUCH-Boards (Android, groß, landscape, Stift/Finger) — primär;
-  Android-Tablets sekundär.
-- **Distribution:** intern, APK direkt auf die Boards (kein Store).
+- **Zielgeräte Board:** CTOUCH-Boards (Android, groß, landscape, Stift/Finger) —
+  primär; Android-Tablets sekundär.
+- **Zielplattformen Desktop:** Windows 11 und macOS (Kollegium) sowie Linux
+  (eigener Arbeitsplatz, Xubuntu) — alle drei müssen bedient werden.
+- **Distribution:** intern, APK direkt auf die Boards (kein Store);
+  Desktop-Pakete pro Plattform (.deb/.msi/.dmg).
 - **Lizenz:** GPLv3 (offener Quellcode).
 - **Datenhaltung:** eigener WebDAV-Server, offenes JSON-Schema, kein Cloud-Zwang.
   **WebDAV läuft bereits auf einer Synology DiskStation** (DSM, WebDAV-Server-Paket)
@@ -116,11 +127,18 @@ produktionsreif.
   kein Microsoft-Konto-/Cloud-Zwang, DSGVO-freundlich im Schulkontext. Der
   WebDAV-Server ist bereits eingerichtet.
 - **Zwei-Client-System in einem Monorepo** (Board + Desktop).
+- **Desktop-Stack: Compose Multiplatform (Kotlin).** (2026-08-19) Abgewogen
+  gegen Qt/QML, Tauri und Electron. Ausschlaggebend: maximaler Code-Reuse
+  (Model, JSON-Schema, `SkriboSync` wandern in ein `shared/`-Modul, das Board
+  und Desktop teilen — verhindert Schema-Drift), eine Sprache für einen
+  Entwickler, und alle drei Desktop-Plattformen (Win 11 / macOS / Linux) aus
+  einer Codebasis. Bewusst akzeptiert: JVM-App statt „echtem" Nativ-Look;
+  Stift-Druck am Desktop ist zweitrangig, da Ink primär am Board stattfindet.
 - **Lizenz GPLv3**, interne APK-Distribution (kein Store).
 
 ## 7. Offene Punkte / To decide
 
-- Desktop-Client: Plattform/Tech-Stack (Web? Kotlin Multiplatform? Electron?),
-  Verzeichnisstruktur im Monorepo (`android/` + `desktop/`?).
+- Monorepo-Zielstruktur beim Umbau (M2): `shared/` + `android/` + `desktop/` —
+  Details (Modulnamen, was genau nach `shared/` zieht) beim Umbau festlegen.
 - Sync: Konfliktbehandlung bei parallelen Änderungen an PC und Board.
 - Repo-Umbenennung Ordner `inktest` → `skribo`? (Repo heißt bereits `Skribo`.)

@@ -16,7 +16,7 @@ Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV
 | Client | Verzeichnis | Zweck | Status |
 |--------|-------------|-------|--------|
 | **Board-Client** (Android) | [`app/`](./app/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
-| **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC | geplant |
+| **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC — Compose Multiplatform, Linux/Win 11/macOS | geplant |
 
 > **Stand heute:** Der Android-Client ist ein **rudimentärer Prototyp**, entstanden
 > als Latenz-Test auf einem echten CTOUCH-Board. Der Test war **erfolgreich** (die
