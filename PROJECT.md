@@ -21,6 +21,24 @@ Daraus folgt die Rangfolge: **Der Desktop-Client ist das Produkt**, das Board
 ergänzt ihn. Ein Skribo, das am Board glänzt, aber unter Linux nicht zum Planen
 taugt, verfehlt den Zweck.
 
+**Nachtrag 19.08.2026 — geprüfte Alternative und warum es trotzdem weitergeht.**
+Gegenprobe: OneNote **im Browser**, in Brave als Web-App installiert, läuft
+unter Linux und kann auch den PDF-Ausdruck. Der ursprüngliche Zweck ist damit
+also auch ohne Skribo erreichbar. Weitergebaut wird trotzdem, aus zwei
+Gründen, die über den Tagesbedarf hinausgehen:
+
+1. **Vorsorge.** In mehreren Bundesländern hat die Datenschutzaufsicht den
+   Einsatz von MS 365 an Schulen beanstandet oder untersagt. Trifft das die
+   eigene Schule, fällt OneNote *und* Teams gleichzeitig weg — dann braucht es
+   kurzfristig ein vollständiges Werkzeug, kein halbes. Skribo ist die
+   Rückfallebene, und eine Rückfallebene muss fertig sein, bevor man sie
+   braucht.
+2. **Nachnutzbarkeit.** Unter GPLv3 auf GitHub hilft es Kolleginnen und
+   Kollegen in derselben Lage.
+
+Für den Umfang heißt das: Skribo muss den Ernstfall abdecken können — also
+Planung **und** Board **und** Synchronisierung, nicht nur das, was heute fehlt.
+
 Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
 
 - **Wiederverwendung über Schuljahre.** In OneNote kopiert man Notizbücher oder
