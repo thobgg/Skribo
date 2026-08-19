@@ -22,6 +22,11 @@ nahtlose, cloud-freie Lösung:
 ist gleichberechtigter Bearbeitungsort, nicht nur Anzeige. Kein Cloud-Zwang,
 selbst hostbar, Datenhoheit bei der Schule.
 
+> **Leitbild Desktop-Client:** ehrlich gesagt ein **OneNote-Desktop-Klon — aber
+> mit weniger Müll**. Genau die Funktionen, die für die Unterrichtsplanung
+> gebraucht werden, und nicht mehr. Kein Feature landet im Client, nur weil
+> OneNote es hat.
+
 ## 2. Architektur
 
 ```
@@ -70,6 +75,11 @@ dateisystem-tauglich sein):
   Texte, Bilder — die *stabile* Seitenbasis. **Geplant (schemaVersion 2):**
   Medienboxen für PDF, Video, Audio; Mediendateien liegen wie Bilder als
   Assets neben `base.json` (heute schon `assets/<id>.png`) und syncen mit.
+  **PDF** (Zielgröße ≤ ~8 Seiten) am Desktop wahlweise auf zwei Arten — wie in
+  OneNote: als **Dateianhang** (Icon auf der Seite, Klick öffnet das PDF) oder
+  als **Ausdruck** (Seiten werden zu Bildern gerendert und aufs Papier gelegt).
+  Der Ausdruck ist zugleich die Board-Lösung: das Board sieht nur Bilder und
+  kann sie mit Ink annotieren — es braucht **keinen eigenen PDF-Renderer**.
 - **`annotations/<schuljahr>.json`** (`type: skribo-annotations`): die *jahresbezogenen*
   Striche/Annotationen. So kann dieselbe Basis über mehrere Schuljahre neu
   annotiert werden, ohne die Vorlage zu überschreiben.
@@ -150,6 +160,7 @@ produktionsreif.
 - Monorepo-Zielstruktur beim Umbau (M2): `shared/` + `android/` + `desktop/` —
   Details (Modulnamen, was genau nach `shared/` zieht) beim Umbau festlegen.
 - Sync: Konfliktbehandlung bei parallelen Änderungen an PC und Board.
-- Medien am **Board**: PDF-Seiten rendern und mit Ink annotieren? Video/Audio
-  am Board abspielen? Große Dateien — komplett syncen oder vom WebDAV streamen?
+- Medien am **Board**: Video/Audio am Board abspielen? Große Dateien —
+  komplett syncen oder vom WebDAV streamen? (PDF ist gelöst: die
+  Ausdruck-Variante liefert dem Board annotierbare Bilder, siehe §2a.)
 - Repo-Umbenennung Ordner `inktest` → `skribo`? (Repo heißt bereits `Skribo`.)
