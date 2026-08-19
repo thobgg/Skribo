@@ -1009,17 +1009,37 @@ class MainActivity : AppCompatActivity() {
         }
         AlertDialog.Builder(this)
             .setTitle("Aktives Schuljahr")
-            .setMessage("Striche landen in annotations/<schuljahr>.json. Beim Wechsel wird automatisch eine neue, leere Schicht angelegt.")
+            .setMessage(
+                "Die Handschrift liegt je Schuljahr in einer eigenen Ebene. " +
+                    "Beim Wechsel bleiben Seiten und Vorlagen stehen, die Fläche " +
+                    "startet leer — das Vorjahr bleibt erhalten."
+            )
             .setView(edit)
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
                 val year = edit.text.toString().trim()
-                if (year.isNotEmpty()) {
-                    prefs.activeSchoolYear = year
-                    Toast.makeText(this, "Schuljahr: $year", Toast.LENGTH_SHORT).show()
-                }
+                if (year.isNotEmpty() && year != prefs.activeSchoolYear) switchSchoolYear(year)
             }
             .setNegativeButton(R.string.dialog_cancel, null)
             .show()
+    }
+
+    /**
+     * Wechselt die Annotationsebene: erst das Angefangene sichern, dann das
+     * Dokument mit der Handschrift des neuen Jahres neu laden. Ohne das
+     * Neuladen bliebe die Ebene des Vorjahres auf dem Schirm.
+     */
+    private fun switchSchoolYear(year: String) {
+        currentPage?.let { repository.savePage(it) }
+        repository.saveDocumentStructure(document)
+        repository.flush()
+
+        prefs.activeSchoolYear = year
+        repository.year = year
+        document = repository.load()
+        currentSection = null
+        currentPage = null
+        activateInitial()
+        Toast.makeText(this, "Schuljahr: $year", Toast.LENGTH_SHORT).show()
     }
 
     private fun triggerSync() {

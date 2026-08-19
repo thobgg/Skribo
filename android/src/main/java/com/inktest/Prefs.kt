@@ -113,8 +113,10 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_WEBDAV_PW, "") ?: ""
         set(v) = sp.edit { putString(KEY_WEBDAV_PW, v) }
 
+    /** Voreinstellung ist das laufende Schuljahr — sonst schriebe das Board in
+     *  einen anderen Jahresordner als der Desktop. */
     var activeSchoolYear: String
-        get() = sp.getString(KEY_SCHOOL_YEAR, "25-26") ?: "25-26"
+        get() = sp.getString(KEY_SCHOOL_YEAR, null) ?: SchoolYear.current()
         set(v) = sp.edit { putString(KEY_SCHOOL_YEAR, v) }
 
     var lastSyncTime: Long

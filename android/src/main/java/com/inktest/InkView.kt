@@ -106,6 +106,7 @@ class InkView @JvmOverloads constructor(
             panX = 0f
             panY = 0f
             scale = 1f
+            updatePageFit()
             redrawAllCommitted()
             invalidate()
             onMetricsChanged?.invoke()
@@ -151,6 +152,9 @@ class InkView @JvmOverloads constructor(
     private val damageRectBuf = Rect()
     private val clipRectBuf = Rect()
     private val eraserHitBuf = Rect()
+    /** Seitenrechteck in Seitenpunkten — Ziel für Vorlage und Papierfläche. */
+    private val pageRectBuf = Rect()
+    private val linkTrianglePath = Path()
     private val predictedBuf = FloatArray(PREDICT_BUF_POINTS * 2)
     private var predictedCount = 0
 
@@ -201,8 +205,42 @@ class InkView @JvmOverloads constructor(
     private var lineStartX: Float = 0f
     private var lineStartY: Float = 0f
 
-    private fun screenToWorldX(sx: Float): Float = (sx - panX) / scale
-    private fun screenToWorldY(sy: Float): Float = (sy - panY) / scale
+    // -------- Seiten-Einpassung --------
+    /**
+     * Seiten mit Format ([PageFormat.isBounded]) werden als Ganzes in die View
+     * eingepasst; diese drei Werte bilden Seitenpunkte auf Weltkoordinaten ab.
+     * Pan/Zoom des Nutzers kommt darüber. Für den freien Canvas ist es die
+     * Identität — dort sind Seitenkoordinaten wie bisher Weltkoordinaten.
+     *
+     * Nur so landet ein am Board geschriebener Strich am PC an derselben Stelle.
+     */
+    private var fitScale: Float = 1f
+    private var fitOffsetX: Float = 0f
+    private var fitOffsetY: Float = 0f
+
+    private fun updatePageFit() {
+        val format = page?.format
+        if (format == null || !format.isBounded || width == 0 || height == 0) {
+            fitScale = 1f
+            fitOffsetX = 0f
+            fitOffsetY = 0f
+            return
+        }
+        fitScale = min(width / format.widthPt, height / format.heightPt)
+        fitOffsetX = (width - format.widthPt * fitScale) / 2f
+        fitOffsetY = (height - format.heightPt * fitScale) / 2f
+    }
+
+    /** Wendet Pan/Zoom **und** die Seiten-Einpassung an — danach gilt Seitenmaß. */
+    private fun applyPageTransform(c: Canvas) {
+        c.translate(panX, panY)
+        c.scale(scale, scale)
+        c.translate(fitOffsetX, fitOffsetY)
+        c.scale(fitScale, fitScale)
+    }
+
+    private fun screenToWorldX(sx: Float): Float = ((sx - panX) / scale - fitOffsetX) / fitScale
+    private fun screenToWorldY(sy: Float): Float = ((sy - panY) / scale - fitOffsetY) / fitScale
 
     fun resetView() {
         panX = 0f
@@ -220,6 +258,7 @@ class InkView @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
+        updatePageFit()
         recreateBitmap()
     }
 
@@ -417,8 +456,7 @@ class InkView @JvmOverloads constructor(
         }
         committedCanvas?.let { c ->
             val saved = c.save()
-            c.translate(panX, panY)
-            c.scale(scale, scale)
+            applyPageTransform(c)
             drawStroke(c, s, clip = false)
             c.restoreToCount(saved)
         }
@@ -446,8 +484,7 @@ class InkView @JvmOverloads constructor(
         if (bmp != null) canvas.drawBitmap(bmp, 0f, 0f, null)
         val s = currentStroke ?: return
         val saved = canvas.save()
-        canvas.translate(panX, panY)
-        canvas.scale(scale, scale)
+        applyPageTransform(canvas)
         drawStroke(canvas, s, clip = false)
         drawPredictedTail(canvas, s)
         canvas.restoreToCount(saved)
@@ -493,40 +530,121 @@ class InkView @JvmOverloads constructor(
         drawPaperBackground(c)
         val p = page ?: return
         val saved = c.save()
-        c.translate(panX, panY)
-        c.scale(scale, scale)
-        // Reihenfolge: Bilder unten, Strokes drüber, Text oben drauf.
+        applyPageTransform(c)
+        // Reihenfolge: Vorlage ganz unten, dann Bilder, Striche, Text.
+        drawPageBackgroundImage(c, p)
         for (ib in p.imageBoxes) drawImageBox(c, ib)
         for (s in p.strokes) drawStroke(c, s, clip = false)
         for (tb in p.textBoxes) drawTextBox(c, tb)
+        for (lb in p.linkBoxes) drawLinkBox(c, lb)
         c.restoreToCount(saved)
     }
 
+    /**
+     * Die gerenderte PDF-Seite bzw. Folie, über die geschrieben wird. Sie füllt
+     * die Seite genau — der Desktop hat sie aus eben dieser Seite gerendert.
+     */
+    private fun drawPageBackgroundImage(c: Canvas, p: Page) {
+        val bg = p.background ?: return
+        if (!p.format.isBounded) return
+        val bmp = imageBitmapCache.getOrPut(bg.assetPath) {
+            imageLoader?.invoke(bg.assetPath) ?: return
+        }
+        pageRectBuf.set(0, 0, p.format.widthPt.toInt(), p.format.heightPt.toInt())
+        c.drawBitmap(bmp, null, pageRectBuf, null)
+    }
+
+    /** Verweis auf ein Video — bewusst nur ein Chip, kein Player am Board. */
+    private fun drawLinkBox(c: Canvas, lb: LinkBox) {
+        val accent = if (lb.youtubeId() != null) 0xFFC62828.toInt() else 0xFF1565C0.toInt()
+        textPaint.textSize = LINK_FONT_SIZE
+        val textWidth = textPaint.measureText(lb.label)
+        val height = LINK_FONT_SIZE * 1.6f
+        val right = lb.x + LINK_TEXT_LEFT + textWidth + LINK_PADDING
+
+        textPaint.color = if (lb.youtubeId() != null) 0xFFFFEBEE.toInt() else 0xFFE3F2FD.toInt()
+        c.drawRect(lb.x, lb.y, right, lb.y + height, textPaint)
+
+        // Abspiel-Dreieck selbst zeichnen — ein ▶ aus der Schrift fehlt je nach Gerät.
+        val cy = lb.y + height / 2f
+        val h = LINK_FONT_SIZE * 0.55f
+        val left = lb.x + LINK_PADDING
+        linkTrianglePath.rewind()
+        linkTrianglePath.moveTo(left, cy - h / 2f)
+        linkTrianglePath.lineTo(left + h * 0.9f, cy)
+        linkTrianglePath.lineTo(left, cy + h / 2f)
+        linkTrianglePath.close()
+        textPaint.color = accent
+        c.drawPath(linkTrianglePath, textPaint)
+
+        c.drawText(lb.label, lb.x + LINK_TEXT_LEFT, lb.y + LINK_FONT_SIZE * 1.15f, textPaint)
+    }
+
+    /**
+     * Millimeter in die gerade gültige Einheit: Seitenpunkte bei Seiten mit
+     * Format (dort sind Koordinaten Punkt), sonst Gerätepixel wie bisher.
+     */
     private fun mm(v: Float): Float =
-        TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_MM, v, resources.displayMetrics)
+        if (page?.format?.isBounded == true) v * MM_TO_PT
+        else TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_MM, v, resources.displayMetrics)
 
     private fun drawPaperBackground(c: Canvas) {
-        val style = page?.paperStyle ?: PaperStyle.BLANK
-        val bg = if (style == PaperStyle.LEGAL) 0xFFFCF8D8.toInt() else 0xFFFDFDFD.toInt()
-        c.drawColor(bg)
-        if (style == PaperStyle.BLANK) return
+        val p = page
+        val style = p?.paperStyle ?: PaperStyle.BLANK
+        val format = p?.format ?: PageFormat.FREE
+        val hasTemplate = p?.background != null
+        val paper = if (style == PaperStyle.LEGAL && !hasTemplate) 0xFFFCF8D8.toInt()
+        else 0xFFFDFDFD.toInt()
+
+        if (format.isBounded) {
+            // Seite mit Format: ringsum Tischfarbe, das Blatt selbst als Rechteck.
+            // Sonst liefe das Papier über den Seitenrand hinaus.
+            c.drawColor(0xFFE8E8E8.toInt())
+            val saved = c.save()
+            applyPageTransform(c)
+            paperPaint.style = Paint.Style.FILL
+            paperPaint.color = paper
+            c.drawRect(0f, 0f, format.widthPt, format.heightPt, paperPaint)
+            c.restoreToCount(saved)
+            // Auf einer gerenderten Vorlage stört jedes Raster.
+            if (style == PaperStyle.BLANK || hasTemplate) return
+        } else {
+            c.drawColor(paper)
+            if (style == PaperStyle.BLANK) return
+        }
 
         // Welt-relative Linien / Punkte: Hintergrund zoomt und pannt mit.
         val saved = c.save()
-        c.translate(panX, panY)
-        c.scale(scale, scale)
+        if (format.isBounded) {
+            applyPageTransform(c)
+            c.clipRect(0f, 0f, format.widthPt, format.heightPt)
+        } else {
+            c.translate(panX, panY)
+            c.scale(scale, scale)
+        }
 
-        val cw = c.width.toFloat()
-        val ch = c.height.toFloat()
-        val worldLeft = -panX / scale
-        val worldTop = -panY / scale
-        val worldRight = (cw - panX) / scale
-        val worldBottom = (ch - panY) / scale
+        // Bei Seiten mit Format spannt sich das Raster über das Blatt, sonst
+        // über den sichtbaren Ausschnitt des unbegrenzten Canvas.
+        val worldLeft: Float
+        val worldTop: Float
+        val worldRight: Float
+        val worldBottom: Float
+        if (format.isBounded) {
+            worldLeft = 0f
+            worldTop = 0f
+            worldRight = format.widthPt
+            worldBottom = format.heightPt
+        } else {
+            worldLeft = -panX / scale
+            worldTop = -panY / scale
+            worldRight = (c.width.toFloat() - panX) / scale
+            worldBottom = (c.height.toFloat() - panY) / scale
+        }
 
         when (style) {
             PaperStyle.LINED -> {
                 paperPaint.style = Paint.Style.STROKE
-                paperPaint.strokeWidth = 1f / scale
+                paperPaint.strokeWidth = 1f / (scale * fitScale)
                 paperPaint.color = 0xFFB8C8E0.toInt()
                 val step = mm(linedSpacingMm)
                 var y = floor(worldTop / step) * step
@@ -537,7 +655,7 @@ class InkView @JvmOverloads constructor(
             }
             PaperStyle.GRID -> {
                 paperPaint.style = Paint.Style.STROKE
-                paperPaint.strokeWidth = 1f / scale
+                paperPaint.strokeWidth = 1f / (scale * fitScale)
                 paperPaint.color = 0xFFD0D0D0.toInt()
                 val step = mm(gridSpacingMm)
                 var y = floor(worldTop / step) * step
@@ -569,7 +687,7 @@ class InkView @JvmOverloads constructor(
             }
             PaperStyle.LEGAL -> {
                 paperPaint.style = Paint.Style.STROKE
-                paperPaint.strokeWidth = 1f / scale
+                paperPaint.strokeWidth = 1f / (scale * fitScale)
                 paperPaint.color = 0xFFB0B8D0.toInt()
                 val step = mm(linedSpacingMm)
                 var y = floor(worldTop / step) * step
@@ -797,6 +915,12 @@ class InkView @JvmOverloads constructor(
 
     private companion object {
         const val TAG = "InkView"
+        /** Maße der Verweis-Chips in Seitenpunkten — wie im Desktop-Client. */
+        const val LINK_FONT_SIZE = 15f
+        const val LINK_PADDING = 8f
+        const val LINK_TEXT_LEFT = 22f
+        /** Millimeter → Punkt (1/72 Zoll). */
+        const val MM_TO_PT = 72f / 25.4f
         const val PREDICT_BUF_POINTS = 32
         const val LINEAR_PREDICT_PX = 20f
         const val MIN_SCALE = 0.25f
