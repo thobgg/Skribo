@@ -16,6 +16,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -42,6 +48,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.skiaCanvas
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
+import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -95,19 +104,60 @@ fun PageCanvas(
     onEditFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Ansicht je Seite: beim Seitenwechsel wieder eingepasst.
+    var pan by remember(page) { mutableStateOf(Offset.Zero) }
+    var zoom by remember(page) { mutableStateOf(1f) }
+
     BoxWithConstraints(modifier.background(Color(0xFFEFEFEF)).padding(24.dp)) {
         val density = LocalDensity.current
-        val layout = page?.let {
-            layoutFor(
-                it,
-                with(density) { maxWidth.toPx() },
-                with(density) { maxHeight.toPx() },
-            )
-        }
+        val availW = with(density) { maxWidth.toPx() }
+        val availH = with(density) { maxHeight.toPx() }
+        val layout = page?.let { layoutFor(it, availW, availH, pan, zoom) }
 
         Canvas(
             Modifier
                 .fillMaxSize()
+                // Mausrad: scrollen, mit Umschalt waagerecht, mit Strg zoomen.
+                // Zoom hält den Punkt unter dem Zeiger fest — sonst verliert
+                // man beim Heranzoomen die Stelle, die man ansehen wollte.
+                .pointerInput(page) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            if (event.type != PointerEventType.Scroll) continue
+                            val change = event.changes.firstOrNull() ?: continue
+                            val delta = change.scrollDelta
+                            val mods = event.keyboardModifiers
+                            if (mods.isCtrlPressed) {
+                                val p = page ?: continue
+                                val factor = if (delta.y < 0f) ZOOM_STEP else 1f / ZOOM_STEP
+                                val newZoom = (zoom * factor).coerceIn(MIN_ZOOM, MAX_ZOOM)
+                                if (newZoom != zoom) {
+                                    val before = layoutFor(
+                                        p, size.width.toFloat(), size.height.toFloat(), pan, zoom,
+                                    )
+                                    val anchor = before.toPage(change.position)
+                                    val after = layoutFor(
+                                        p, size.width.toFloat(), size.height.toFloat(),
+                                        Offset.Zero, newZoom,
+                                    )
+                                    // Verschiebung so wählen, dass der Ankerpunkt
+                                    // wieder unter dem Zeiger liegt.
+                                    pan = change.position - anchor * after.scale - after.origin
+                                    zoom = newZoom
+                                }
+                            } else {
+                                val step = SCROLL_STEP
+                                pan += if (mods.isShiftPressed) {
+                                    Offset(-delta.y * step, 0f)
+                                } else {
+                                    Offset(-delta.x * step, -delta.y * step)
+                                }
+                            }
+                            change.consume()
+                        }
+                    }
+                }
                 // Bewusst NUR auf `page` gekeyed: käme `revision` dazu, würde
                 // jede Positionsänderung den Erkenner neu starten und die
                 // laufende Zugbewegung abbrechen.
@@ -115,14 +165,14 @@ fun PageCanvas(
                     detectTapGestures(
                         onDoubleTap = { offset ->
                             val p = page ?: return@detectTapGestures
-                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
-                            val pt = layout.toPage(offset) ?: return@detectTapGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat(), pan, zoom)
+                            val pt = layout.toPage(offset)
                             hitBox(p, pt)?.let(onOpen)
                         },
                         onTap = { offset ->
                             val p = page ?: return@detectTapGestures
-                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
-                            val pt = layout.toPage(offset) ?: return@detectTapGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat(), pan, zoom)
+                            val pt = layout.toPage(offset)
                             val hit = hitBox(p, pt)
                             if (hit != null) onSelect(hit)
                             else {
@@ -143,8 +193,8 @@ fun PageCanvas(
                     detectDragGestures(
                         onDragStart = { offset ->
                             val p = page ?: return@detectDragGestures
-                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
-                            val pt = layout.toPage(offset) ?: return@detectDragGestures
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat(), pan, zoom)
+                            val pt = layout.toPage(offset)
 
                             val sel = selected
                             resizing = sel is ImageBox && resizeHandle(sel, layout).contains(pt)
@@ -164,7 +214,7 @@ fun PageCanvas(
                             val p = page ?: return@detectDragGestures
                             val box = target ?: return@detectDragGestures
                             change.consume()
-                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat())
+                            val layout = layoutFor(p, size.width.toFloat(), size.height.toFloat(), pan, zoom)
                             val dx = amount.x / layout.scale
                             val dy = amount.y / layout.scale
                             if (resizing && box is ImageBox) {
@@ -199,7 +249,7 @@ fun PageCanvas(
         ) {
             @Suppress("UNUSED_EXPRESSION") revision
             val p = page ?: return@Canvas
-            val layout = layoutFor(p, size.width, size.height)
+            val layout = layoutFor(p, size.width, size.height, pan, zoom)
 
             drawRect(
                 color = paperColor(p),
@@ -224,6 +274,23 @@ fun PageCanvas(
 
         if (page != null && editing != null && layout != null) {
             InlineTextEditor(page, editing, layout, controller, onEditFinished)
+        }
+
+        // Nur sichtbar, wenn die Ansicht verschoben oder gezoomt ist — sonst
+        // fände man nach dem Zoomen nicht mehr zurück.
+        if (zoom != 1f || pan != Offset.Zero) {
+            Surface(
+                Modifier.align(Alignment.TopEnd).padding(8.dp),
+                color = MaterialTheme.colorScheme.inverseSurface,
+                shape = RoundedCornerShape(6.dp),
+            ) {
+                TextButton(onClick = { pan = Offset.Zero; zoom = 1f }) {
+                    Text(
+                        "${(zoom * 100).roundToInt()} % · einpassen",
+                        color = MaterialTheme.colorScheme.inverseOnSurface,
+                    )
+                }
+            }
         }
     }
 }
@@ -296,6 +363,12 @@ private fun InlineTextEditor(
 /** Auch ein leeres Feld muss breit genug zum Hineinklicken sein. */
 private const val MIN_EDITOR_WIDTH_PX = 140f
 
+private const val ZOOM_STEP = 1.15f
+private const val MIN_ZOOM = 0.25f
+private const val MAX_ZOOM = 6f
+/** Pixel je Rasterschritt des Mausrads. */
+private const val SCROLL_STEP = 60f
+
 // ---------------- Seitengeometrie ----------------
 
 /**
@@ -309,13 +382,13 @@ private class PageLayout(
     val widthPt: Float,
     val heightPt: Float,
 ) {
-    /** Pixel-Koordinate → Seitenpunkt; null außerhalb der Seite. */
-    fun toPage(p: Offset): Offset? {
-        val x = (p.x - origin.x) / scale
-        val y = (p.y - origin.y) / scale
-        if (x < 0f || y < 0f || x > widthPt || y > heightPt) return null
-        return Offset(x, y)
-    }
+    /**
+     * Pixel-Koordinate → Seitenpunkt. Bewusst **ohne** Begrenzung auf das
+     * Seitenrechteck: Neben einer gerenderten Vorlage soll Platz für Notizen
+     * am Rand bleiben, wie man es von OneNote kennt.
+     */
+    fun toPage(p: Offset): Offset =
+        Offset((p.x - origin.x) / scale, (p.y - origin.y) / scale)
 }
 
 /**
@@ -323,19 +396,33 @@ private class PageLayout(
  * gewahrt). Der freie Canvas nutzt die Fläche unskaliert — dort sind
  * Seitenpunkte gleich Pixel wie in schemaVersion 1.
  */
-private fun layoutFor(page: Page, availW: Float, availH: Float): PageLayout {
-    if (!page.format.isBounded) {
-        return PageLayout(Offset.Zero, Size(availW, availH), 1f, availW, availH)
+private fun layoutFor(
+    page: Page,
+    availW: Float,
+    availH: Float,
+    pan: Offset = Offset.Zero,
+    zoom: Float = 1f,
+): PageLayout {
+    val wPt: Float
+    val hPt: Float
+    val baseScale: Float
+    val baseOrigin: Offset
+    if (page.format.isBounded) {
+        wPt = page.format.widthPt
+        hPt = page.format.heightPt
+        baseScale = min(availW / wPt, availH / hPt)
+        baseOrigin = Offset((availW - wPt * baseScale) / 2f, (availH - hPt * baseScale) / 2f)
+    } else {
+        // Freier Canvas: Seitenpunkte sind Pixel wie in schemaVersion 1.
+        wPt = availW
+        hPt = availH
+        baseScale = 1f
+        baseOrigin = Offset.Zero
     }
-    val wPt = page.format.widthPt
-    val hPt = page.format.heightPt
-    val scale = min(availW / wPt, availH / hPt)
-    val w = wPt * scale
-    val h = hPt * scale
     return PageLayout(
-        origin = Offset((availW - w) / 2f, (availH - h) / 2f),
-        sizePx = Size(w, h),
-        scale = scale,
+        origin = baseOrigin + pan,
+        sizePx = Size(wPt * baseScale * zoom, hPt * baseScale * zoom),
+        scale = baseScale * zoom,
         widthPt = wPt,
         heightPt = hPt,
     )
