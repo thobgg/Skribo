@@ -135,10 +135,26 @@ class SkriboSync(private val settings: () -> SyncConfig) {
     }
 
     private fun pageToBaseJson(page: Page): JSONObject = JSONObject().apply {
-        put("schemaVersion", 1)
+        put("schemaVersion", SCHEMA_VERSION)
         put("type", "skribo-base")
         put("id", page.id)
         put("title", page.title)
+        // Format und Hintergrund gehören zur stabilen Basis — die Handschrift
+        // darüber steckt in annotations/<schuljahr>.json.
+        put("format", page.format.name.lowercase())
+        if (page.format.isBounded) {
+            put("size", JSONObject().apply {
+                put("widthPt", page.format.widthPt.toDouble())
+                put("heightPt", page.format.heightPt.toDouble())
+            })
+        }
+        page.background?.let { bg ->
+            put("background", JSONObject().apply {
+                put("src", bg.assetPath)
+                bg.sourceName?.let { put("sourceName", it) }
+                bg.sourcePage?.let { put("sourcePage", it) }
+            })
+        }
         put("paper", JSONObject().apply {
             put("type", page.paperStyle.name.lowercase())
         })
@@ -168,10 +184,22 @@ class SkriboSync(private val settings: () -> SyncConfig) {
             })
         }
         put("images", images)
+        val links = JSONArray()
+        page.linkBoxes.forEach { lb ->
+            links.put(JSONObject().apply {
+                put("id", lb.id)
+                put("x", lb.x.toDouble())
+                put("y", lb.y.toDouble())
+                put("url", lb.url)
+                put("title", lb.title)
+                lb.youtubeId()?.let { put("youtubeId", it) }
+            })
+        }
+        put("links", links)
     }
 
     private fun pageToAnnotationsJson(page: Page, year: String): JSONObject = JSONObject().apply {
-        put("schemaVersion", 1)
+        put("schemaVersion", SCHEMA_VERSION)
         put("type", "skribo-annotations")
         put("schoolYear", year)
         val strokes = JSONArray()
@@ -244,5 +272,12 @@ class SkriboSync(private val settings: () -> SyncConfig) {
 
     companion object {
         private const val TAG = "SkriboSync"
+
+        /**
+         * 2 seit der Medien-Erweiterung: Seitenformat, Hintergrund (gerenderte
+         * PDF-Seite/Folie) und Links. Version 1 bleibt lesbar — dort fehlende
+         * Felder bedeuten „freier Canvas, kein Hintergrund".
+         */
+        const val SCHEMA_VERSION = 2
     }
 }

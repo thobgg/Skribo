@@ -4,6 +4,7 @@ import com.inktest.Document
 import com.inktest.DocumentStore
 import com.inktest.Page
 import com.inktest.SkriboLog
+import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
@@ -20,6 +21,9 @@ class DesktopRepository(private val store: DocumentStore) {
         Thread(r, "skribo-save").apply { isDaemon = true }
     }
     private val pending = mutableMapOf<String, ScheduledFuture<*>>()
+
+    val rootDir: File get() = store.rootDir
+    val assetsDir: File get() = store.assetsDir
 
     fun load(): Document = store.load()
 

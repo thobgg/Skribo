@@ -3,11 +3,18 @@ package com.inktest.desktop
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.inktest.AddImageBox
+import com.inktest.AddLinkBox
 import com.inktest.AddTextBox
 import com.inktest.Document
+import com.inktest.EditLinkBox
 import com.inktest.EditTextBoxContent
+import com.inktest.ImageBox
+import com.inktest.LinkBox
 import com.inktest.Page
 import com.inktest.PaperStyle
+import com.inktest.RemoveImageBox
+import com.inktest.RemoveLinkBox
 import com.inktest.RemoveTextBox
 import com.inktest.Section
 import com.inktest.TextBox
@@ -135,6 +142,67 @@ class DocumentController(
         repository.savePage(page)
     }
 
+    // ---------------- Medien ----------------
+
+    /**
+     * Legt für jede Seite von [imported] eine Skribo-Seite an — der „Ausdruck".
+     * Ist gerade eine Seite ausgewählt, hängen die neuen Seiten als Unterseiten
+     * darunter, sonst landen sie auf oberster Ebene. Gibt die Anzahl zurück.
+     */
+    fun addImportedPages(imported: List<PdfImporter.ImportedPage>): Int {
+        val section = activeSection ?: return 0
+        if (imported.isEmpty()) return 0
+        val parent = activePage?.takeIf { it.parentId == null }
+        edit {
+            imported.forEach { source ->
+                val page = Page(
+                    title = source.title,
+                    // Auf einer gerenderten Vorlage stört jedes Raster.
+                    paperStyle = PaperStyle.BLANK,
+                    format = source.format,
+                    background = source.background,
+                )
+                if (parent != null) section.addSubpageOf(parent, page) else section.addRootPage(page)
+                repository.savePage(page)
+                activePage = page
+            }
+        }
+        return imported.size
+    }
+
+    fun addImageBox(page: Page, box: ImageBox) = edit {
+        page.applyAction(AddImageBox(box))
+        repository.savePage(page)
+    }
+
+    fun deleteImageBox(page: Page, box: ImageBox) = edit {
+        val idx = page.imageBoxes.indexOf(box)
+        if (idx >= 0) {
+            page.applyAction(RemoveImageBox(box, idx))
+            repository.savePage(page)
+        }
+    }
+
+    // ---------------- Links (YouTube) ----------------
+
+    fun addLinkBox(page: Page, x: Float, y: Float, url: String, title: String) = edit {
+        page.applyAction(AddLinkBox(LinkBox(x = x, y = y, url = url, title = title)))
+        repository.savePage(page)
+    }
+
+    fun editLinkBox(page: Page, box: LinkBox, url: String, title: String) = edit {
+        page.applyAction(EditLinkBox(box, box.url, box.title, url, title))
+        repository.savePage(page)
+    }
+
+    fun deleteLinkBox(page: Page, box: LinkBox) = edit {
+        val idx = page.linkBoxes.indexOf(box)
+        if (idx >= 0) {
+            page.applyAction(RemoveLinkBox(box, idx))
+            repository.savePage(page)
+        }
+    }
+
     // ---------------- Textfelder ----------------
 
     fun addTextBox(page: Page, x: Float, y: Float, content: String) = edit {
@@ -164,6 +232,10 @@ class DocumentController(
     }
 
     fun flush() = repository.flush()
+
+    /** Wo importierte Bilder und gerenderte PDF-Seiten liegen. */
+    val assetsDir: java.io.File get() = repository.assetsDir
+    val rootDir: java.io.File get() = repository.rootDir
 
     /**
      * Führt eine Modelländerung aus, meldet sie an Compose und schreibt die

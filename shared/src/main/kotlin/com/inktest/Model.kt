@@ -76,6 +76,29 @@ class ChangePaperStyle(private val old: PaperStyle, private val new: PaperStyle)
     override fun undo(page: Page) { page.paperStyle = old }
 }
 
+class AddLinkBox(private val box: LinkBox) : EditAction {
+    override fun redo(page: Page) { page.linkBoxes.add(box) }
+    override fun undo(page: Page) { page.linkBoxes.remove(box) }
+}
+
+class RemoveLinkBox(private val box: LinkBox, private val index: Int) : EditAction {
+    override fun redo(page: Page) { page.linkBoxes.remove(box) }
+    override fun undo(page: Page) {
+        page.linkBoxes.add(index.coerceIn(0, page.linkBoxes.size), box)
+    }
+}
+
+class EditLinkBox(
+    private val box: LinkBox,
+    private val oldUrl: String,
+    private val oldTitle: String,
+    private val newUrl: String,
+    private val newTitle: String,
+) : EditAction {
+    override fun redo(page: Page) { box.url = newUrl; box.title = newTitle }
+    override fun undo(page: Page) { box.url = oldUrl; box.title = oldTitle }
+}
+
 class TextBox(
     val id: String = UUID.randomUUID().toString(),
     var x: Float,
@@ -139,9 +162,17 @@ class Page(
     var title: String,
     var paperStyle: PaperStyle = PaperStyle.BLANK,
     var parentId: String? = null,
+    /**
+     * Seitenformat und damit das Koordinatensystem der Seite (siehe [PageFormat]).
+     * [PageFormat.FREE] entspricht dem unbegrenzten Canvas von schemaVersion 1.
+     */
+    var format: PageFormat = PageFormat.FREE,
+    /** Gerenderte PDF-Seite bzw. Folie, über die geschrieben wird. */
+    var background: PageBackground? = null,
     val strokes: MutableList<Stroke> = mutableListOf(),
     val textBoxes: MutableList<TextBox> = mutableListOf(),
     val imageBoxes: MutableList<ImageBox> = mutableListOf(),
+    val linkBoxes: MutableList<LinkBox> = mutableListOf(),
 ) {
     private val undoStack = ArrayDeque<EditAction>()
     private val redoStack = ArrayDeque<EditAction>()
@@ -184,6 +215,8 @@ class Page(
         put("id", id)
         put("title", title)
         put("paperStyle", paperStyle.name)
+        put("format", format.name)
+        background?.let { put("background", it.toJson()) }
         if (parentId != null) put("parentId", parentId)
         val arr = JSONArray()
         strokes.forEach { arr.put(it.toJson()) }
@@ -194,6 +227,9 @@ class Page(
         val iArr = JSONArray()
         imageBoxes.forEach { iArr.put(it.toJson()) }
         put("imageBoxes", iArr)
+        val lArr = JSONArray()
+        linkBoxes.forEach { lArr.put(it.toJson()) }
+        put("linkBoxes", lArr)
     }
 
     companion object {
@@ -207,6 +243,10 @@ class Page(
                 title = j.optString("title", "Seite"),
                 paperStyle = paper,
                 parentId = if (j.has("parentId") && !j.isNull("parentId")) j.getString("parentId") else null,
+                // Fehlt beides, ist es eine Seite aus schemaVersion 1: freier Canvas.
+                format = PageFormat.parse(j.optString("format", null)),
+                background = j.optJSONObject("background")
+                    ?.let { runCatching { PageBackground.fromJson(it) }.getOrNull() },
             )
             j.optJSONArray("strokes")?.let { arr ->
                 for (i in 0 until arr.length()) {
@@ -224,6 +264,12 @@ class Page(
                 for (i in 0 until arr.length()) {
                     runCatching { ImageBox.fromJson(arr.getJSONObject(i)) }
                         .onSuccess { p.imageBoxes.add(it) }
+                }
+            }
+            j.optJSONArray("linkBoxes")?.let { arr ->
+                for (i in 0 until arr.length()) {
+                    runCatching { LinkBox.fromJson(arr.getJSONObject(i)) }
+                        .onSuccess { p.linkBoxes.add(it) }
                 }
             }
             return p

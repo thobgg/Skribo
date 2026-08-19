@@ -1,7 +1,10 @@
 package com.inktest.desktop
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -19,6 +22,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.MaterialTheme
 
 /**
  * Dialog für eine einzelne Texteingabe (Titel vergeben, Text setzen …).
@@ -32,6 +37,7 @@ fun TextInputDialog(
     initial: String = "",
     confirmLabel: String = "OK",
     onConfirm: (String) -> Unit,
+    onDelete: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     var value by remember {
@@ -64,7 +70,74 @@ fun TextInputDialog(
             }
         },
         confirmButton = { TextButton(onClick = confirm) { Text(confirmLabel) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+        dismissButton = {
+            Row {
+                if (onDelete != null) TextButton(onClick = onDelete) { Text("Löschen") }
+                TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            }
+        },
+    )
+}
+
+/**
+ * Dialog für einen Verweis (in der Praxis YouTube): URL plus optionaler
+ * Anzeigetext. Leere URL heißt „löschen".
+ */
+@Composable
+fun LinkDialog(
+    initialUrl: String = "",
+    initialTitle: String = "",
+    onConfirm: (url: String, title: String) -> Unit,
+    onDelete: (() -> Unit)? = null,
+    onDismiss: () -> Unit,
+) {
+    var url by remember { mutableStateOf(initialUrl) }
+    var title by remember { mutableStateOf(initialTitle) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initialUrl.isEmpty()) "Video verlinken" else "Verweis bearbeiten") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("Adresse (z. B. YouTube-Link)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Beschriftung (optional)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Das Video wird nicht heruntergeladen — auf der Seite steht ein " +
+                        "Verweis, der im Browser geöffnet wird.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (url.isNotBlank()) onConfirm(url.trim(), title.trim()) },
+                enabled = url.isNotBlank(),
+            ) { Text("Übernehmen") }
+        },
+        dismissButton = {
+            Row {
+                if (onDelete != null) {
+                    TextButton(onClick = onDelete) { Text("Löschen") }
+                }
+                TextButton(onClick = onDismiss) { Text("Abbrechen") }
+            }
+        },
     )
 }
 

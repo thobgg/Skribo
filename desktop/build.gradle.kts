@@ -22,12 +22,17 @@ java {
 dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
-    implementation(compose.material3)
+    implementation(libs.compose.material3)
 
     // Auf Android kommt org.json aus der Plattform, auf der JVM nicht.
     implementation(libs.json)
 
+    // Rendert PDF-Seiten zu Bildern („Ausdruck"). Bewusst nur hier: das Board
+    // bekommt fertige Bilder und braucht keinen eigenen PDF-Renderer.
+    implementation(libs.pdfbox)
+
     testImplementation(libs.kotlin.test)
+    testImplementation(libs.json)
 }
 
 tasks.test {

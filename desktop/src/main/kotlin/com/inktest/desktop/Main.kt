@@ -19,6 +19,7 @@ fun main() = application {
     val controller = remember {
         DocumentController(repository.load(), repository, DesktopPrefs(AppPaths.settingsFile()))
     }
+    val assets = remember { AssetCache(repository.rootDir) }
 
     Window(
         onCloseRequest = {
@@ -33,7 +34,7 @@ fun main() = application {
         ),
     ) {
         MaterialTheme {
-            SkriboApp(controller)
+            SkriboApp(controller, assets)
         }
     }
 }

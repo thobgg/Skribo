@@ -9,6 +9,11 @@ inputMotionprediction = "1.0.0-beta05"
 okhttp = "4.12.0"
 # Desktop-Client: Compose Multiplatform (Linux/Windows/macOS aus einer Codebasis).
 composeMultiplatform = "1.11.1"
+# material3 hat einen eigenen Versionsstrang, nicht den von Compose Multiplatform.
+composeMaterial3 = "1.9.0"
+# PDF-Seiten zu Bildern rendern („Ausdruck"). Nur im Desktop-Client — das Board
+# bekommt fertige Bilder und braucht keinen PDF-Renderer.
+pdfbox = "3.0.8"
 # org.json ist auf Android eingebaut, auf der JVM nicht — für shared/desktop nötig.
 json = "20250517"
 
@@ -20,6 +25,8 @@ androidx-input-motionprediction = { group = "androidx.input", name = "input-moti
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 json = { group = "org.json", name = "json", version.ref = "json" }
 kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test-junit5", version.ref = "kotlin" }
+pdfbox = { group = "org.apache.pdfbox", name = "pdfbox", version.ref = "pdfbox" }
+compose-material3 = { group = "org.jetbrains.compose.material3", name = "material3", version.ref = "composeMaterial3" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
