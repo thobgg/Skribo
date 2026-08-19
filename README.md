@@ -127,6 +127,11 @@ Handschrift vom Board.
 Voraussetzung ist ein JDK 17 oder neuer; für den Board-Client zusätzlich das
 Android SDK (Pfad in `local.properties`, nicht eingecheckt).
 
+> Entwickelt und benutzt wird unter Linux. Windows und macOS sollten laufen —
+> der Code ist plattformneutral und die Paketierung ist eingerichtet —, aber
+> **ausprobiert wurde es dort nicht**. Das `.msi` bzw. `.dmg` muss zudem auf dem
+> jeweiligen System gebaut werden; `jpackage` kann nicht für andere paketieren.
+
 ```bash
 ./gradlew :desktop:run             # Desktop-Client starten
 ./gradlew :desktop:packageDeb      # Linux-Paket (analog packageMsi / packageDmg)
@@ -149,6 +154,22 @@ einschließlich der Assets.
 **Fehlt:** Textformatierung; Seiten zwischen Abschnitten verschieben; Suche;
 Löschungen werden nicht übertragen (eine lokal gelöschte Seite kommt beim
 nächsten Holen zurück).
+
+> ⚠️ **Die Synchronisierung ist noch nicht gegen einen echten Server gelaufen.**
+> Sie wurde vollständig durchgespielt — senden, holen, ändern, zurückholen,
+> samt Assets — aber gegen einen eigens dafür geschriebenen Test-WebDAV, nicht
+> gegen eine Synology, Nextcloud oder Apache. Erfahrungsgemäß unterscheiden
+> sich solche Server genau dort, wo es weh tut: bei den PROPFIND-Antworten, bei
+> Umlauten und Sonderzeichen in Ordnernamen (Seitentitel werden zu Ordnern!)
+> und bei den Statuscodes.
+>
+> **Wer es ausprobiert, sollte deshalb mit einem eigenen Testordner anfangen**
+> — einem Abschnitt mit einem WebDAV-Pfad wie `skribo-test`, nicht mit dem
+> Ordner, in dem echtes Material liegt.
+
+Nützlich für eine Fehlermeldung: welcher Server (Produkt und Version), was
+passieren sollte, was stattdessen passierte, und die Meldung, die Skribo
+angezeigt hat.
 
 Vollständiger Projektkontext, Entscheidungen und Milestones stehen in
 [`PROJECT.md`](./PROJECT.md) — inklusive der Begründungen, die sich unterwegs als
