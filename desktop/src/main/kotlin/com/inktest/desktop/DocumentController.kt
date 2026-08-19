@@ -208,9 +208,14 @@ class DocumentController(
 
     // ---------------- Textfelder ----------------
 
-    fun addTextBox(page: Page, x: Float, y: Float, content: String) = edit {
-        page.applyAction(AddTextBox(TextBox(x = x, y = y, content = content)))
-        repository.savePage(page)
+    /** Gibt das neue Feld zurück, damit direkt hineingeschrieben werden kann. */
+    fun addTextBox(page: Page, x: Float, y: Float, content: String): TextBox {
+        val box = TextBox(x = x, y = y, content = content)
+        edit {
+            page.applyAction(AddTextBox(box))
+            repository.savePage(page)
+        }
+        return box
     }
 
     fun editTextBox(page: Page, box: TextBox, content: String) = edit {

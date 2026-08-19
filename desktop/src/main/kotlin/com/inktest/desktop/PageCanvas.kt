@@ -4,11 +4,32 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -38,6 +59,7 @@ import org.jetbrains.skia.FontStyle
 import org.jetbrains.skia.Paint as SkiaPaint
 import org.jetbrains.skia.Typeface
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** Millimeter → Punkt (Seitenkoordinaten sind Punkt, 1/72 Zoll). */
 private const val MM_TO_PT = 72f / 25.4f
@@ -56,21 +78,33 @@ private val defaultTypeface: Typeface by lazy {
  * Fenstergröße.
  *
  * Bedienung: Klick wählt aus, Ziehen verschiebt, der Griff unten rechts an
- * einem ausgewählten Bild ändert die Größe. Ein Klick ins Leere legt Text an.
+ * einem ausgewählten Bild ändert die Größe. Ein Klick ins Leere legt ein
+ * Textfeld an und setzt den Cursor hinein — getippt wird direkt auf der Seite.
  */
 @Composable
 fun PageCanvas(
     page: Page?,
     revision: Int,
     selected: PositionedBox?,
+    editing: TextBox?,
     controller: DocumentController,
     backgroundLoader: (String) -> ImageBitmap?,
     onSelect: (PositionedBox?) -> Unit,
     onOpen: (PositionedBox) -> Unit,
     onEmptyClick: (Float, Float) -> Unit,
+    onEditFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier.background(Color(0xFFEFEFEF)).padding(24.dp)) {
+    BoxWithConstraints(modifier.background(Color(0xFFEFEFEF)).padding(24.dp)) {
+        val density = LocalDensity.current
+        val layout = page?.let {
+            layoutFor(
+                it,
+                with(density) { maxWidth.toPx() },
+                with(density) { maxHeight.toPx() },
+            )
+        }
+
         Canvas(
             Modifier
                 .fillMaxSize()
@@ -181,14 +215,86 @@ fun PageCanvas(
                     if (bg != null) drawBackground(bg, layout) else drawPaper(p.paperStyle, layout)
                     drawImageBoxes(p, backgroundLoader)
                     drawStrokes(p)
-                    drawTextBoxes(p)
+                    drawTextBoxes(p, editing)
                     drawLinkBoxes(p)
                     selected?.let { drawSelection(it, layout) }
                 }
             }
         }
+
+        if (page != null && editing != null && layout != null) {
+            InlineTextEditor(page, editing, layout, controller, onEditFinished)
+        }
     }
 }
+
+/**
+ * Eingabefeld, das genau über dem Textfeld der Seite liegt — Schriftgröße und
+ * Farbe werden mitskaliert, damit beim Tippen schon zu sehen ist, wie es
+ * später aussieht. Mehrzeilig: Eingabetaste macht einen Zeilenumbruch.
+ *
+ * Übernommen wird beim Verlassen des Feldes oder mit Escape. Bleibt der Text
+ * leer, verschwindet das Feld wieder — sonst blieben unsichtbare Reste zurück,
+ * sobald man versehentlich auf die Seite klickt.
+ */
+@Composable
+private fun InlineTextEditor(
+    page: Page,
+    box: TextBox,
+    layout: PageLayout,
+    controller: DocumentController,
+    onDone: () -> Unit,
+) {
+    val density = LocalDensity.current
+    var value by remember(box) {
+        mutableStateOf(TextFieldValue(box.content, TextRange(box.content.length)))
+    }
+    val focus = remember { FocusRequester() }
+    // onFocusChanged meldet beim Einhängen zuerst „nicht fokussiert" — ohne
+    // dieses Merkmal würde das eben angelegte Feld sofort wieder verschwinden.
+    var hadFocus by remember(box) { mutableStateOf(false) }
+    LaunchedEffect(box) { focus.requestFocus() }
+
+    fun commit() {
+        val text = value.text
+        if (text.isBlank()) controller.deleteTextBox(page, box)
+        else if (text != box.content) controller.editTextBox(page, box, text)
+        onDone()
+    }
+
+    val xPx = layout.origin.x + box.x * layout.scale
+    val yPx = layout.origin.y + box.y * layout.scale
+    val widthPx = (textBounds(box).width * layout.scale).coerceAtLeast(MIN_EDITOR_WIDTH_PX)
+
+    BasicTextField(
+        value = value,
+        onValueChange = { value = it },
+        modifier = Modifier
+            .offset { IntOffset(xPx.roundToInt(), yPx.roundToInt()) }
+            .width(with(density) { widthPx.toDp() })
+            .focusRequester(focus)
+            .onFocusChanged { state ->
+                if (state.isFocused) hadFocus = true else if (hadFocus) commit()
+            }
+            .onPreviewKeyEvent { event ->
+                if (event.type == KeyEventType.KeyDown && event.key == Key.Escape) {
+                    commit()
+                    true
+                } else {
+                    false
+                }
+            },
+        textStyle = TextStyle(
+            fontSize = with(density) { (box.fontSize * layout.scale).toSp() },
+            lineHeight = with(density) { (box.fontSize * layout.scale * LINE_HEIGHT_FACTOR).toSp() },
+            color = Color(box.color),
+        ),
+        cursorBrush = SolidColor(Color(box.color)),
+    )
+}
+
+/** Auch ein leeres Feld muss breit genug zum Hineinklicken sein. */
+private const val MIN_EDITOR_WIDTH_PX = 140f
 
 // ---------------- Seitengeometrie ----------------
 
@@ -252,13 +358,20 @@ private fun boundsOf(box: PositionedBox): Rect = when (box) {
     else -> Rect(box.x, box.y, box.x, box.y)
 }
 
+/** Zeilenabstand als Vielfaches der Schriftgröße. */
+private const val LINE_HEIGHT_FACTOR = 1.3f
+
+private fun textLines(box: TextBox): List<String> = box.content.split("\n")
+
 private fun textBounds(box: TextBox): Rect {
-    val width = Font(defaultTypeface, box.fontSize).measureTextWidth(box.content)
+    val font = Font(defaultTypeface, box.fontSize)
+    val lines = textLines(box)
+    val width = lines.maxOf { font.measureTextWidth(it) }
     return Rect(
         left = box.x,
         top = box.y,
         right = box.x + width.coerceAtLeast(box.fontSize),
-        bottom = box.y + box.fontSize * 1.3f,
+        bottom = box.y + lines.size * box.fontSize * LINE_HEIGHT_FACTOR,
     )
 }
 
@@ -387,13 +500,18 @@ private fun DrawScope.drawStrokes(page: Page) {
     }
 }
 
-private fun DrawScope.drawTextBoxes(page: Page) {
+private fun DrawScope.drawTextBoxes(page: Page, hidden: TextBox?) {
     page.textBoxes.forEach { tb ->
+        // Das gerade bearbeitete Feld zeichnet das Eingabefeld darüber selbst.
+        if (tb === hidden) return@forEach
         val paint = SkiaPaint().apply { color = tb.color }
         val font = Font(defaultTypeface, tb.fontSize)
-        drawContext.canvas.skiaCanvas.drawString(
-            tb.content, tb.x, tb.y + tb.fontSize, font, paint,
-        )
+        val step = tb.fontSize * LINE_HEIGHT_FACTOR
+        textLines(tb).forEachIndexed { i, line ->
+            drawContext.canvas.skiaCanvas.drawString(
+                line, tb.x, tb.y + tb.fontSize + i * step, font, paint,
+            )
+        }
     }
 }
 

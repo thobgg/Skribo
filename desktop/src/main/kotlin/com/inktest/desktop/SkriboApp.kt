@@ -66,6 +66,8 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
     var busy by remember { mutableStateOf<String?>(null) }
     /** Ausgewähltes Element auf der Seite; beim Seitenwechsel zurückgesetzt. */
     var selected by remember(controller.activePage) { mutableStateOf<PositionedBox?>(null) }
+    /** Textfeld, in dem gerade direkt auf der Seite geschrieben wird. */
+    var editing by remember(controller.activePage) { mutableStateOf<TextBox?>(null) }
     val scope = rememberCoroutineScope()
 
     /** Import läuft im Hintergrund — Rendern eines PDFs dauert spürbar. */
@@ -151,17 +153,26 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                             page = controller.activePage,
                             revision = controller.revision,
                             selected = selected,
+                            editing = editing,
                             controller = controller,
                             backgroundLoader = assets::load,
                             onSelect = { selected = it },
                             onOpen = { box ->
-                                dialog = when (box) {
-                                    is TextBox -> AppDialog.EditText(box)
-                                    is LinkBox -> AppDialog.EditLink(box)
-                                    else -> null
+                                when (box) {
+                                    // Text wird direkt auf der Seite geschrieben,
+                                    // ein Verweis bleibt beim Dialog — dort gehören
+                                    // Adresse und Beschriftung zusammen.
+                                    is TextBox -> editing = box
+                                    is LinkBox -> dialog = AppDialog.EditLink(box)
+                                    else -> Unit
                                 }
                             },
-                            onEmptyClick = { x, y -> dialog = AppDialog.NewText(x, y) },
+                            onEmptyClick = { x, y ->
+                                controller.activePage?.let { page ->
+                                    editing = controller.addTextBox(page, x, y, "")
+                                }
+                            },
+                            onEditFinished = { editing = null },
                             modifier = Modifier.fillMaxSize(),
                         )
                         busy?.let { message ->
@@ -198,8 +209,6 @@ sealed interface AppDialog {
     data class NewSubpage(val parent: Page) : AppDialog
     data class RenamePage(val page: Page) : AppDialog
     data class DeletePage(val page: Page) : AppDialog
-    data class NewText(val x: Float, val y: Float) : AppDialog
-    data class EditText(val box: TextBox) : AppDialog
     data object NewLink : AppDialog
     data class EditLink(val box: LinkBox) : AppDialog
     /** Reine Rückmeldung, etwa wenn ein Import fehlschlägt. */
@@ -267,30 +276,6 @@ private fun AppDialogHost(
             title = "Seite löschen",
             message = "„${dialog.page.title}“ wird gelöscht — Unterseiten inklusive.",
             onConfirm = { controller.deletePage(dialog.page); onClose() },
-            onDismiss = onClose,
-        )
-
-        is AppDialog.NewText -> TextInputDialog(
-            title = "Text einfügen", label = "Text", confirmLabel = "Einfügen",
-            onConfirm = { text ->
-                controller.activePage?.let { controller.addTextBox(it, dialog.x, dialog.y, text) }
-                onClose()
-            },
-            onDismiss = onClose,
-        )
-
-        is AppDialog.EditText -> TextInputDialog(
-            title = "Text bearbeiten",
-            label = "Text",
-            initial = dialog.box.content,
-            onConfirm = { text ->
-                controller.activePage?.let { controller.editTextBox(it, dialog.box, text) }
-                onClose()
-            },
-            onDelete = {
-                controller.activePage?.let { controller.deleteTextBox(it, dialog.box) }
-                onClose()
-            },
             onDismiss = onClose,
         )
 
