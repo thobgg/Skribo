@@ -40,3 +40,6 @@ keystore.properties
 *.log
 .env
 .env.local
+
+# Sitzungsdaten von Entwicklungswerkzeugen
+.claude/

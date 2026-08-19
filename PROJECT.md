@@ -1,8 +1,8 @@
 # Projekt: Skribo — Handschrift-System für Unterrichtsplanung (PC ↔ CTOUCH-Board)
 
 > **Dieses Dokument ist der Projektkontext.** Motivation, Architektur, Milestones
-> und Entscheidungen an einer Stelle — Grundlage für die Weiterentwicklung mit
-> Claude Code. (Arbeitstitel des Repos: „Inktest"; Produktname: **Skribo**.)
+> und Entscheidungen an einer Stelle — Grundlage für die Weiterentwicklung.
+> (Arbeitstitel des Repos: „Inktest"; Produktname: **Skribo**.)
 
 ---
 
