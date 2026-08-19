@@ -38,6 +38,11 @@ selbst hostbar, Datenhoheit bei der Schule.
 - **Datenmodell** (`app/.../Model.kt`): Abschnitte → Seiten → Unterseiten;
   Werkzeuge Pen/Highlighter/Line/Text/Image/Eraser; Papierstile
   Blank/Lined/Grid/Dots/Legal.
+- **Rollenteilung der Clients:** Der Desktop-Client ist reiner Planungs- und
+  Medienarbeitsplatz — **kein Stift/Ink nötig**; zentral ist die **Einbindung
+  von Medien** (PDF-Dokumente, Bilder, Videos, Audios, …) in die Seiten.
+  Handschrift/Annotation passiert am Board. Das Schema muss dafür über
+  Text-/Bildboxen hinaus Medienboxen bekommen (→ §2a, schemaVersion erhöhen).
 - **Sync** (`app/.../SkriboSync.kt`): WebDAV via OkHttp, HTTP Basic Auth. Push-only
   (Pull/Bidirektional = M4). Details siehe **§2a**.
 - **Ink-Engine** (`InkView.kt`, `Stroke.kt`): Glättung (Bézier / Catmull-Rom / WMA),
@@ -62,7 +67,9 @@ dateisystem-tauglich sein):
 
 - `section.webdavPath` — pro Abschnitt konfiguriert; leer ⇒ Abschnitt bleibt lokal.
 - **`base.json`** (`type: skribo-base`, `schemaVersion: 1`): Titel, Papierstil,
-  Texte, Bilder — die *stabile* Seitenbasis.
+  Texte, Bilder — die *stabile* Seitenbasis. **Geplant (schemaVersion 2):**
+  Medienboxen für PDF, Video, Audio; Mediendateien liegen wie Bilder als
+  Assets neben `base.json` (heute schon `assets/<id>.png`) und syncen mit.
 - **`annotations/<schuljahr>.json`** (`type: skribo-annotations`): die *jahresbezogenen*
   Striche/Annotationen. So kann dieselbe Basis über mehrere Schuljahre neu
   annotiert werden, ohne die Vorlage zu überschreiben.
@@ -100,7 +107,9 @@ produktionsreif.
       Monorepo-Umbau zu `shared/` (Model, JSON-Schema, `SkriboSync`) +
       `android/` + `desktop/` — Schema-Code existiert danach nur noch **einmal**
 - [ ] **M3 — Desktop-Client MVP (Compose Multiplatform):** OneNote-artige
-      Planungsoberfläche; liest/schreibt dasselbe Schema direkt via WebDAV;
+      Planungsoberfläche, **kein Ink** — Kern ist die Medien-Einbindung
+      (PDF, Bilder, Video, Audio) inkl. Schema-Erweiterung (schemaVersion 2);
+      liest/schreibt dasselbe Schema direkt via WebDAV;
       Pakete für Linux (.deb), Windows 11 (.msi), macOS (.dmg) via `jpackage`
 - [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
       Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
@@ -141,4 +150,6 @@ produktionsreif.
 - Monorepo-Zielstruktur beim Umbau (M2): `shared/` + `android/` + `desktop/` —
   Details (Modulnamen, was genau nach `shared/` zieht) beim Umbau festlegen.
 - Sync: Konfliktbehandlung bei parallelen Änderungen an PC und Board.
+- Medien am **Board**: PDF-Seiten rendern und mit Ink annotieren? Video/Audio
+  am Board abspielen? Große Dateien — komplett syncen oder vom WebDAV streamen?
 - Repo-Umbenennung Ordner `inktest` → `skribo`? (Repo heißt bereits `Skribo`.)
