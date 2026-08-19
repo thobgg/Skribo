@@ -168,11 +168,19 @@ private fun textBounds(box: TextBox): Rect {
 
 private fun linkBounds(box: LinkBox): Rect {
     val font = Font(defaultTypeface, LINK_FONT_SIZE)
-    val width = font.measureTextWidth("▶ ${box.label}")
-    return Rect(box.x, box.y, box.x + width + 12f, box.y + LINK_FONT_SIZE * 1.6f)
+    val width = font.measureTextWidth(box.label)
+    return Rect(
+        left = box.x,
+        top = box.y,
+        right = box.x + LINK_TEXT_LEFT + width + LINK_PADDING,
+        bottom = box.y + LINK_FONT_SIZE * 1.6f,
+    )
 }
 
 private const val LINK_FONT_SIZE = 15f
+private const val LINK_PADDING = 8f
+/** Platz links für das Abspiel-Dreieck. */
+private const val LINK_TEXT_LEFT = 22f
 
 // ---------------- Zeichnen ----------------
 
@@ -259,18 +267,39 @@ private fun DrawScope.drawTextBoxes(page: Page) {
 private fun DrawScope.drawLinkBoxes(page: Page) {
     page.linkBoxes.forEach { lb ->
         val bounds = linkBounds(lb)
+        val isVideo = lb.youtubeId() != null
+        val accentArgb = if (isVideo) 0xFFC62828.toInt() else 0xFF1565C0.toInt()
+        val accent = Color(accentArgb)
+
         // Videos sind Verweise, keine Player — deshalb als Chip statt als Rahmen.
         drawRect(
-            color = if (lb.youtubeId() != null) Color(0xFFFFEBEE) else Color(0xFFE3F2FD),
+            color = if (isVideo) Color(0xFFFFEBEE) else Color(0xFFE3F2FD),
             topLeft = Offset(bounds.left, bounds.top),
             size = Size(bounds.width, bounds.height),
         )
-        val paint = SkiaPaint().apply {
-            color = if (lb.youtubeId() != null) 0xFFC62828.toInt() else 0xFF1565C0.toInt()
-        }
+
+        // Abspiel-Dreieck selbst zeichnen: ein ▶ aus der Schrift fehlt je nach
+        // System und erscheint dann als leeres Kästchen.
+        val cy = bounds.top + bounds.height / 2f
+        val h = LINK_FONT_SIZE * 0.55f
+        val left = bounds.left + LINK_PADDING
+        drawPath(
+            path = androidx.compose.ui.graphics.Path().apply {
+                moveTo(left, cy - h / 2f)
+                lineTo(left + h * 0.9f, cy)
+                lineTo(left, cy + h / 2f)
+                close()
+            },
+            color = accent,
+        )
+
         val font = Font(defaultTypeface, LINK_FONT_SIZE)
         drawContext.canvas.skiaCanvas.drawString(
-            "▶ ${lb.label}", bounds.left + 6f, bounds.top + LINK_FONT_SIZE * 1.15f, font, paint,
+            lb.label,
+            bounds.left + LINK_TEXT_LEFT,
+            bounds.top + LINK_FONT_SIZE * 1.15f,
+            font,
+            SkiaPaint().apply { color = accentArgb },
         )
     }
 }
