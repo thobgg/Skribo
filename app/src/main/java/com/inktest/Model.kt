@@ -8,6 +8,74 @@ enum class PaperStyle { BLANK, LINED, GRID, DOTS, LEGAL }
 
 enum class Tool { PEN, HIGHLIGHTER, LINE, TEXT, IMAGE, ERASER }
 
+/**
+ * Eine rückgängig-machbare Änderung an einer [Page]. `redo` wendet die Änderung an
+ * (auch beim erstmaligen Ausführen über [Page.applyAction]), `undo` macht sie rückgängig.
+ * Alle Seiten-Mutationen laufen über diese Aktionen, damit Zeichnen, Radieren,
+ * Text/Bild und Papierwechsel einheitlich über eine Historie undo/redo-bar sind.
+ */
+sealed interface EditAction {
+    fun redo(page: Page)
+    fun undo(page: Page)
+}
+
+class AddStroke(private val stroke: Stroke) : EditAction {
+    override fun redo(page: Page) { page.strokes.add(stroke) }
+    override fun undo(page: Page) { page.strokes.remove(stroke) }
+}
+
+/** Radiert einen Stroke; merkt sich seine Position, um ihn beim Undo z-korrekt einzufügen. */
+class EraseStroke(private val stroke: Stroke, private val index: Int) : EditAction {
+    override fun redo(page: Page) { page.strokes.remove(stroke) }
+    override fun undo(page: Page) {
+        page.strokes.add(index.coerceIn(0, page.strokes.size), stroke)
+    }
+}
+
+/** Leert alle Striche einer Seite (undo-bar). */
+class ClearStrokes(private val removed: List<Stroke>) : EditAction {
+    override fun redo(page: Page) { page.strokes.removeAll(removed.toSet()) }
+    override fun undo(page: Page) { page.strokes.addAll(removed) }
+}
+
+class AddTextBox(private val box: TextBox) : EditAction {
+    override fun redo(page: Page) { page.textBoxes.add(box) }
+    override fun undo(page: Page) { page.textBoxes.remove(box) }
+}
+
+class RemoveTextBox(private val box: TextBox, private val index: Int) : EditAction {
+    override fun redo(page: Page) { page.textBoxes.remove(box) }
+    override fun undo(page: Page) {
+        page.textBoxes.add(index.coerceIn(0, page.textBoxes.size), box)
+    }
+}
+
+class EditTextBoxContent(
+    private val box: TextBox,
+    private val oldContent: String,
+    private val newContent: String,
+) : EditAction {
+    override fun redo(page: Page) { box.content = newContent }
+    override fun undo(page: Page) { box.content = oldContent }
+}
+
+class AddImageBox(private val box: ImageBox) : EditAction {
+    override fun redo(page: Page) { page.imageBoxes.add(box) }
+    override fun undo(page: Page) { page.imageBoxes.remove(box) }
+}
+
+class RemoveImageBox(private val box: ImageBox, private val index: Int) : EditAction {
+    override fun redo(page: Page) { page.imageBoxes.remove(box) }
+    override fun undo(page: Page) {
+        page.imageBoxes.add(index.coerceIn(0, page.imageBoxes.size), box)
+    }
+}
+
+class ChangePaperStyle(private val old: PaperStyle, private val new: PaperStyle) : EditAction {
+    override fun redo(page: Page) { page.paperStyle = new }
+    override fun undo(page: Page) { page.paperStyle = old }
+}
+
 class TextBox(
     val id: String = UUID.randomUUID().toString(),
     var x: Float,
@@ -75,28 +143,41 @@ class Page(
     val textBoxes: MutableList<TextBox> = mutableListOf(),
     val imageBoxes: MutableList<ImageBox> = mutableListOf(),
 ) {
-    val redoStack: ArrayDeque<Stroke> = ArrayDeque()
+    private val undoStack = ArrayDeque<EditAction>()
+    private val redoStack = ArrayDeque<EditAction>()
 
-    fun addStroke(s: Stroke) {
-        strokes.add(s)
+    /** Wendet eine Aktion an, legt sie auf den Undo-Stack und verwirft den Redo-Stack. */
+    fun applyAction(action: EditAction) {
+        action.redo(this)
+        undoStack.addLast(action)
         redoStack.clear()
+        if (undoStack.size > MAX_HISTORY) undoStack.removeFirst()
     }
 
+    /** Bequemer Alias fürs Zeichnen. */
+    fun addStroke(s: Stroke) = applyAction(AddStroke(s))
+
+    /** Leert alle Striche (undo-bar). No-op, wenn schon leer. */
+    fun clearStrokes() {
+        if (strokes.isEmpty()) return
+        applyAction(ClearStrokes(strokes.toList()))
+    }
+
+    fun canUndo(): Boolean = undoStack.isNotEmpty()
+    fun canRedo(): Boolean = redoStack.isNotEmpty()
+
     fun undo(): Boolean {
-        val s = strokes.removeLastOrNull() ?: return false
-        redoStack.addLast(s)
+        val a = undoStack.removeLastOrNull() ?: return false
+        a.undo(this)
+        redoStack.addLast(a)
         return true
     }
 
     fun redo(): Boolean {
-        val s = redoStack.removeLastOrNull() ?: return false
-        strokes.add(s)
+        val a = redoStack.removeLastOrNull() ?: return false
+        a.redo(this)
+        undoStack.addLast(a)
         return true
-    }
-
-    fun clear() {
-        strokes.clear()
-        redoStack.clear()
     }
 
     fun toJson(): JSONObject = JSONObject().apply {
@@ -116,6 +197,8 @@ class Page(
     }
 
     companion object {
+        const val MAX_HISTORY = 100
+
         fun fromJson(j: JSONObject): Page {
             val paper = runCatching { PaperStyle.valueOf(j.getString("paperStyle")) }
                 .getOrDefault(PaperStyle.BLANK)

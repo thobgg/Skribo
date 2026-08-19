@@ -1179,7 +1179,7 @@ class MainActivity : AppCompatActivity() {
                 val content = edit.text.toString().trim()
                 if (content.isNotEmpty()) {
                     val tb = TextBox(x = wx, y = wy, content = content)
-                    page.textBoxes.add(tb)
+                    page.applyAction(AddTextBox(tb))
                     repository.savePage(page)
                     inkView.refresh()
                 }
@@ -1194,10 +1194,13 @@ class MainActivity : AppCompatActivity() {
             .setItems(arrayOf("Bearbeiten", "Löschen")) { _, which ->
                 when (which) {
                     0 -> showTextBoxEditDialog(tb)
-                    1 -> {
-                        currentPage?.textBoxes?.remove(tb)
-                        currentPage?.let { repository.savePage(it) }
-                        inkView.refresh()
+                    1 -> currentPage?.let { p ->
+                        val idx = p.textBoxes.indexOf(tb)
+                        if (idx >= 0) {
+                            p.applyAction(RemoveTextBox(tb, idx))
+                            repository.savePage(p)
+                            inkView.refresh()
+                        }
                     }
                 }
             }
@@ -1215,9 +1218,14 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Text bearbeiten")
             .setView(edit)
             .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                tb.content = edit.text.toString()
-                currentPage?.let { repository.savePage(it) }
-                inkView.refresh()
+                val newContent = edit.text.toString()
+                if (newContent != tb.content) {
+                    currentPage?.let { p ->
+                        p.applyAction(EditTextBoxContent(tb, tb.content, newContent))
+                        repository.savePage(p)
+                        inkView.refresh()
+                    }
+                }
             }
             .setNegativeButton(R.string.dialog_cancel, null)
             .show()
@@ -1228,10 +1236,13 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Bild")
             .setItems(arrayOf("Löschen")) { _, which ->
                 when (which) {
-                    0 -> {
-                        currentPage?.imageBoxes?.remove(ib)
-                        currentPage?.let { repository.savePage(it) }
-                        inkView.refresh()
+                    0 -> currentPage?.let { p ->
+                        val idx = p.imageBoxes.indexOf(ib)
+                        if (idx >= 0) {
+                            p.applyAction(RemoveImageBox(ib, idx))
+                            repository.savePage(p)
+                            inkView.refresh()
+                        }
                     }
                 }
             }
@@ -1273,7 +1284,7 @@ class MainActivity : AppCompatActivity() {
                 x = wx, y = wy, width = w, height = h,
                 assetPath = "assets/$assetId.png",
             )
-            page.imageBoxes.add(ib)
+            page.applyAction(AddImageBox(ib))
             repository.savePage(page)
             inkView.refresh()
         } catch (e: Exception) {

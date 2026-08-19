@@ -592,8 +592,7 @@ class InkView @JvmOverloads constructor(
         val action = event.actionMasked
         if (action != MotionEvent.ACTION_DOWN && action != MotionEvent.ACTION_MOVE) return true
         val hit = findStrokeAt(p, screenToWorldX(event.x), screenToWorldY(event.y)) ?: return true
-        p.strokes.remove(hit)
-        p.redoStack.addLast(hit)
+        p.applyAction(EraseStroke(hit, p.strokes.indexOf(hit)))
         redrawAllCommitted()
         invalidate()
         onStrokeCommitted?.invoke(p)
@@ -758,7 +757,7 @@ class InkView @JvmOverloads constructor(
     fun setActivePaperStyle(style: PaperStyle) {
         val p = page ?: return
         if (p.paperStyle == style) return
-        p.paperStyle = style
+        p.applyAction(ChangePaperStyle(p.paperStyle, style))
         redrawAllCommitted()
         invalidate()
         onStrokeCommitted?.invoke(p)
@@ -784,7 +783,7 @@ class InkView @JvmOverloads constructor(
 
     fun clear() {
         val p = page ?: return
-        p.clear()
+        p.clearStrokes()
         currentStroke = null
         predictedCount = 0
         redrawAllCommitted()
