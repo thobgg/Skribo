@@ -136,6 +136,14 @@ produktionsreif.
       (PDF, Bilder, Video, Audio) inkl. Schema-Erweiterung (schemaVersion 2);
       liest/schreibt dasselbe Schema direkt via WebDAV;
       Pakete für Linux (.deb), Windows 11 (.msi), macOS (.dmg) via `jpackage`
+  - [x] Grundgerüst läuft unter Linux: Abschnitts-Reiter, Seitenliste mit
+        Unterseiten, Seitenanzeige mit Papierraster, Strichen und Texten.
+        Am Board gezeichnete Striche werden korrekt dargestellt — dieselbe
+        Glättungsmathematik aus `:shared` über `ComposePathSink` (Skia).
+  - [ ] Bearbeiten statt nur Anzeigen (Seiten/Abschnitte anlegen, Text setzen)
+  - [ ] Medien-Einbindung (PDF als Anhang/Ausdruck, Bilder, Video, Audio)
+  - [ ] WebDAV direkt aus dem Desktop-Client
+  - [ ] Paketierung (.deb / .msi / .dmg)
 - [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
       Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
 - [ ] **M5 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die

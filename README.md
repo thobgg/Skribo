@@ -17,7 +17,7 @@ Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV
 |-------|-------------|-------|--------|
 | **Kern** (plattformfrei) | [`shared/`](./shared/) | Datenmodell, On-Disk-/WebDAV-Schema, Strich-Mathematik | ✅ |
 | **Board-Client** (Android) | [`android/`](./android/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
-| **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC — Compose Multiplatform, Linux/Win 11/macOS | geplant |
+| **Desktop-Client** (Planung) | [`desktop/`](./desktop/) | OneNote-artige Unterrichtsplanung am PC — Compose Multiplatform, Linux/Win 11/macOS | Grundgerüst läuft 🚧 |
 
 Beide Clients teilen sich `shared/` — das Schema existiert dadurch nur an einer
 Stelle und kann zwischen Board und Desktop nicht auseinanderlaufen.
@@ -69,6 +69,17 @@ gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
 ./gradlew :android:installDebug    # auf angeschlossenem Board/Gerät/Emulator installieren
 ./gradlew :shared:test             # Kern testen (ohne Gerät/Emulator)
 ```
+
+## Build (Desktop-Client)
+
+```bash
+./gradlew :desktop:run             # direkt starten
+./gradlew :desktop:packageDeb      # Linux-Paket (analog packageMsi / packageDmg)
+```
+
+> Das lokale Dokument liegt plattformgerecht unter `~/.local/share/skribo`
+> (Linux), `%APPDATA%\skribo` (Windows) bzw.
+> `~/Library/Application Support/skribo` (macOS).
 
 > Voraussetzung: Android SDK. Lokale Pfade (`sdk.dir`, JDK) stehen in
 > `local.properties` — diese Datei ist bewusst **nicht** eingecheckt.
