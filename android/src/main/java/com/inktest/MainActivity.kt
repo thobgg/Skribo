@@ -4,6 +4,7 @@ import android.app.AlertDialog
 import android.content.DialogInterface
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import java.io.File
 import java.io.FileOutputStream
@@ -142,6 +143,7 @@ class MainActivity : AppCompatActivity() {
         setupTuningPanel()
         setupMetrics()
         setupFloatingToolbar()
+        setupBackHandling()
 
         inkView.onStrokeCommitted = { page -> repository.savePage(page) }
         inkView.onTextBoxTap = { existing, wx, wy ->
@@ -173,19 +175,33 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    @Deprecated("Handled explicitly — schließt offene Drawer bevor Activity verlassen wird")
-    override fun onBackPressed() {
-        if (appMenuPanel.visibility == View.VISIBLE) {
-            appMenuPanel.visibility = View.GONE
-            return
-        }
-        if (tuningPanel.visibility == View.VISIBLE) {
-            tuningPanel.visibility = View.GONE
-            prefs.tuningVisible = false
-            return
-        }
-        @Suppress("DEPRECATION")
-        super.onBackPressed()
+    /**
+     * Zurück schließt zuerst offene Panels, bevor die Activity verlassen wird.
+     *
+     * Ab Android 16 (targetSdk 36) ruft die Zurück-Geste `onBackPressed` nicht
+     * mehr auf — es muss über den [androidx.activity.OnBackPressedDispatcher]
+     * laufen, sonst reagiert die Geste am Board gar nicht.
+     */
+    private fun setupBackHandling() {
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                when {
+                    appMenuPanel.visibility == View.VISIBLE ->
+                        appMenuPanel.visibility = View.GONE
+
+                    tuningPanel.visibility == View.VISIBLE -> {
+                        tuningPanel.visibility = View.GONE
+                        prefs.tuningVisible = false
+                    }
+
+                    else -> {
+                        // Nichts mehr zu schließen: abschalten und regulär weiterreichen.
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                    }
+                }
+            }
+        })
     }
 
     private fun hideSystemBars() {
