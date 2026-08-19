@@ -140,7 +140,11 @@ produktionsreif.
         Unterseiten, Seitenanzeige mit Papierraster, Strichen und Texten.
         Am Board gezeichnete Striche werden korrekt dargestellt — dieselbe
         Glättungsmathematik aus `:shared` über `ComposePathSink` (Skia).
-  - [ ] Bearbeiten statt nur Anzeigen (Seiten/Abschnitte anlegen, Text setzen)
+  - [x] Bearbeiten: Abschnitte und Seiten anlegen/umbenennen/löschen,
+        Unterseiten, Textfelder setzen/ändern/löschen, Papierstil,
+        Rückgängig/Wiederholen, WebDAV-Pfad je Abschnitt. Speichern
+        gebündelt (400 ms) über den geteilten `DocumentStore`; die App
+        öffnet wieder bei der zuletzt bearbeiteten Seite.
   - [ ] Medien-Einbindung (PDF als Anhang/Ausdruck, Bilder, Video, Audio)
   - [ ] WebDAV direkt aus dem Desktop-Client
   - [ ] Paketierung (.deb / .msi / .dmg)
