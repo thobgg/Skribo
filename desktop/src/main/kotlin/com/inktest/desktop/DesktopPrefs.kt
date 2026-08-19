@@ -1,6 +1,7 @@
 package com.inktest.desktop
 
 import com.inktest.SchoolYear
+import com.inktest.SkriboSync
 import com.inktest.SkriboLog
 import java.io.File
 import java.util.Properties
@@ -29,6 +30,36 @@ class DesktopPrefs(private val file: File) {
         get() = props.getProperty(KEY_PAGE)?.ifEmpty { null }
         set(v) = set(KEY_PAGE, v)
 
+    // ---------------- WebDAV ----------------
+    //
+    // Diese Angaben liegen bewusst in dieser Datei neben dem Dokument und
+    // NICHT im Repository — sie gehören zum Gerät, nicht zum Programm.
+    // Das Passwort steht im Klartext, wie auf Android in den SharedPreferences;
+    // wer das nicht möchte, lässt das Feld leer und trägt es je Sitzung ein.
+
+    var webdavServer: String
+        get() = props.getProperty(KEY_SERVER).orEmpty()
+        set(v) = set(KEY_SERVER, v.trim())
+
+    var webdavUsername: String
+        get() = props.getProperty(KEY_USER).orEmpty()
+        set(v) = set(KEY_USER, v.trim())
+
+    var webdavPassword: String
+        get() = props.getProperty(KEY_PASSWORD).orEmpty()
+        set(v) = set(KEY_PASSWORD, v)
+
+    /** Ob überhaupt genug für einen Sync eingetragen ist. */
+    val webdavConfigured: Boolean
+        get() = webdavServer.isNotBlank() && webdavUsername.isNotBlank()
+
+    fun syncConfig(): SkriboSync.SyncConfig = SkriboSync.SyncConfig(
+        server = webdavServer,
+        username = webdavUsername,
+        password = webdavPassword,
+        schoolYear = activeSchoolYear,
+    )
+
     /** Schuljahr, dessen Annotationsebene gerade bearbeitet wird. */
     var activeSchoolYear: String
         get() = props.getProperty(KEY_YEAR)?.ifEmpty { null } ?: SchoolYear.current()
@@ -51,5 +82,8 @@ class DesktopPrefs(private val file: File) {
         const val KEY_SECTION = "activeSectionId"
         const val KEY_PAGE = "activePageId"
         const val KEY_YEAR = "activeSchoolYear"
+        const val KEY_SERVER = "webdavServer"
+        const val KEY_USER = "webdavUsername"
+        const val KEY_PASSWORD = "webdavPassword"
     }
 }

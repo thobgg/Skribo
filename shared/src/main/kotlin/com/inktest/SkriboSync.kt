@@ -26,7 +26,15 @@ import java.util.concurrent.TimeUnit
  *
  * Pull is not yet implemented; this class is push-only.
  */
-class SkriboSync(private val settings: () -> SyncConfig) {
+class SkriboSync(
+    private val settings: () -> SyncConfig,
+    /**
+     * Wurzel des lokalen Dokuments. Ist sie gesetzt, wandern auch die Assets
+     * mit — gerenderte Vorlagen, Bilder und Original-PDFs. Ohne sie stünde am
+     * Board eine leere Seite, weil die Vorlage fehlt.
+     */
+    private val assetRoot: java.io.File? = null,
+) {
 
     /**
      * Verbindungsdaten für den WebDAV-Server. Wird bei jedem Aufruf frisch
@@ -130,8 +138,70 @@ class SkriboSync(private val settings: () -> SyncConfig) {
     private fun pushPage(server: String, auth: String, basePath: String, page: Page, year: String) {
         ensureDirectory(server, auth, basePath)
         ensureDirectory(server, auth, "$basePath/annotations")
+        pushAssets(server, auth, basePath, page)
         putJson(server, auth, "$basePath/base.json", pageToBaseJson(page))
         putJson(server, auth, "$basePath/annotations/$year.json", pageToAnnotationsJson(page, year))
+    }
+
+    /** Alle Dateien, auf die eine Seite verweist — relativ zur Dokumentwurzel. */
+    private fun assetsOf(page: Page): List<String> = buildList {
+        page.background?.let { bg ->
+            add(bg.assetPath)
+            bg.sourceAssetPath?.let { add(it) }
+        }
+        page.imageBoxes.forEach { add(it.assetPath) }
+    }.filter { it.isNotBlank() }.distinct()
+
+    /**
+     * Lädt fehlende Assets hoch. Vorhandene werden übersprungen — ein
+     * Original-PDF jedes Mal neu zu schicken wäre reine Verschwendung, und die
+     * Dateien ändern sich nicht (jede bekommt beim Import eine neue Kennung).
+     */
+    private fun pushAssets(server: String, auth: String, basePath: String, page: Page) {
+        val root = assetRoot ?: return
+        val assets = assetsOf(page)
+        if (assets.isEmpty()) return
+        ensureDirectory(server, auth, "$basePath/assets")
+        assets.forEach { rel ->
+            val file = java.io.File(root, rel)
+            if (!file.exists()) {
+                SkriboLog.w(TAG, "Asset fehlt lokal, wird nicht hochgeladen: $rel")
+                return@forEach
+            }
+            val remote = "$basePath/${rel.substringAfterLast('/').let { "assets/$it" }}"
+            if (exists(server, auth, remote)) return@forEach
+            putBytes(server, auth, remote, file)
+        }
+    }
+
+    private fun exists(server: String, auth: String, path: String): Boolean {
+        val req = Request.Builder()
+            .url("$server/${urlEncodePath(path)}")
+            .header("Authorization", auth)
+            .head()
+            .build()
+        return runCatching {
+            client.newCall(req).execute().use { it.isSuccessful }
+        }.getOrDefault(false)
+    }
+
+    private fun putBytes(server: String, auth: String, path: String, file: java.io.File) {
+        val type = when (file.extension.lowercase()) {
+            "pdf" -> "application/pdf"
+            "png" -> "image/png"
+            "jpg", "jpeg" -> "image/jpeg"
+            else -> "application/octet-stream"
+        }
+        val req = Request.Builder()
+            .url("$server/${urlEncodePath(path)}")
+            .header("Authorization", auth)
+            .put(file.readBytes().toRequestBody(type.toMediaType()))
+            .build()
+        client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful && resp.code != 201 && resp.code != 204) {
+                throw IOException("PUT $path → HTTP ${resp.code}")
+            }
+        }
     }
 
     private fun pageToBaseJson(page: Page): JSONObject = JSONObject().apply {

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
@@ -155,6 +156,78 @@ fun ConfirmDialog(
         title = { Text(title) },
         text = { Text(message) },
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmLabel) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
+/**
+ * Zugangsdaten für den WebDAV-Server. Sie werden in `desktop.properties`
+ * neben dem Dokument abgelegt — nicht im Programm und nicht im Repository.
+ */
+@Composable
+fun WebdavSettingsDialog(
+    initialServer: String,
+    initialUser: String,
+    initialPassword: String,
+    onTest: (String, String, String) -> Unit,
+    testResult: String?,
+    onConfirm: (server: String, user: String, password: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var server by remember { mutableStateOf(initialServer) }
+    var user by remember { mutableStateOf(initialUser) }
+    var password by remember { mutableStateOf(initialPassword) }
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focus.requestFocus() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("WebDAV-Server") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = server,
+                    onValueChange = { server = it },
+                    label = { Text("Adresse, z. B. https://nas.example/skribo") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = user,
+                    onValueChange = { user = it },
+                    label = { Text("Benutzername") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Passwort") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    testResult ?: "Die Angaben bleiben auf diesem Rechner — sie liegen " +
+                        "in desktop.properties neben dem Dokument.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(
+                    onClick = { onTest(server.trim(), user.trim(), password) },
+                    enabled = server.isNotBlank() && user.isNotBlank(),
+                ) { Text("Verbindung testen") }
+                TextButton(
+                    onClick = { onConfirm(server.trim(), user.trim(), password) },
+                ) { Text("Speichern") }
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
     )
 }

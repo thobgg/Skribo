@@ -90,6 +90,38 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         }
     }
 
+    var webdavTest by remember { mutableStateOf<String?>(null) }
+
+    /** Schiebt das Dokument auf den WebDAV-Server; läuft im Hintergrund. */
+    fun push() {
+        if (!controller.webdavConfigured) {
+            dialog = AppDialog.WebdavSettings
+            return
+        }
+        busy = "Wird auf den Server geschoben …"
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { controller.push() } }
+            busy = null
+            result
+                .onSuccess { r ->
+                    dialog = AppDialog.Message(
+                        buildString {
+                            append("${r.pageCount} Seite(n) übertragen.")
+                            if (r.errors.isNotEmpty()) {
+                                append("\n\n${r.errors.size} Fehler:\n")
+                                append(r.errors.take(5).joinToString("\n"))
+                            }
+                            if (r.pageCount == 0 && r.errors.isEmpty()) {
+                                append("\n\nKein Abschnitt hat einen WebDAV-Pfad. " +
+                                    "Rechtsklick auf einen Reiter → „WebDAV-Pfad …“.")
+                            }
+                        }
+                    )
+                }
+                .onFailure { dialog = AppDialog.Message("Sync fehlgeschlagen:\n${it.message}") }
+        }
+    }
+
     /** Gibt das beim Import mitgespeicherte Original wieder heraus. */
     fun exportOriginal() {
         val bg = controller.activePage?.background ?: return
@@ -167,6 +199,8 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         onImportImage = ::importImage,
                         onAddLink = { dialog = AppDialog.NewLink },
                         onExportOriginal = ::exportOriginal,
+                        onSync = ::push,
+                        onWebdavSettings = { webdavTest = null; dialog = AppDialog.WebdavSettings },
                     )
                     HorizontalDivider()
                     Box(Modifier.fillMaxSize()) {
@@ -215,7 +249,20 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         }
     }
 
-    AppDialogHost(dialog, controller) { dialog = null }
+    AppDialogHost(
+        dialog = dialog,
+        controller = controller,
+        webdavTestResult = webdavTest,
+        onTestWebdav = { server, user, password ->
+            webdavTest = "Wird geprüft …"
+            scope.launch {
+                val error = withContext(Dispatchers.IO) {
+                    controller.testConnection(server, user, password)
+                }
+                webdavTest = error?.let { "Fehler: $it" } ?: "Verbindung steht."
+            }
+        },
+    ) { dialog = null }
 }
 
 // ---------------- Dialog-Zustände ----------------
@@ -231,6 +278,7 @@ sealed interface AppDialog {
     data class RenamePage(val page: Page) : AppDialog
     data class DeletePage(val page: Page) : AppDialog
     data object NewLink : AppDialog
+    data object WebdavSettings : AppDialog
     data class EditLink(val box: LinkBox) : AppDialog
     /** Reine Rückmeldung, etwa wenn ein Import fehlschlägt. */
     data class Message(val text: String) : AppDialog
@@ -240,6 +288,8 @@ sealed interface AppDialog {
 private fun AppDialogHost(
     dialog: AppDialog?,
     controller: DocumentController,
+    webdavTestResult: String?,
+    onTestWebdav: (String, String, String) -> Unit,
     onClose: () -> Unit,
 ) {
     when (dialog) {
@@ -320,6 +370,21 @@ private fun AppDialogHost(
             },
             onDelete = {
                 controller.activePage?.let { controller.deleteLinkBox(it, dialog.box) }
+                onClose()
+            },
+            onDismiss = onClose,
+        )
+
+        AppDialog.WebdavSettings -> WebdavSettingsDialog(
+            initialServer = controller.webdavServer,
+            initialUser = controller.webdavUsername,
+            initialPassword = controller.webdavPassword,
+            onTest = { server, user, password ->
+                onTestWebdav(server, user, password)
+            },
+            testResult = webdavTestResult,
+            onConfirm = { server, user, password ->
+                controller.setWebdav(server, user, password)
                 onClose()
             },
             onDismiss = onClose,
@@ -482,6 +547,8 @@ private fun PageToolbar(
     onImportImage: () -> Unit,
     onAddLink: () -> Unit,
     onExportOriginal: () -> Unit,
+    onSync: () -> Unit,
+    onWebdavSettings: () -> Unit,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
 
@@ -513,6 +580,10 @@ private fun PageToolbar(
         if (page?.background?.sourceAssetPath != null) {
             TextButton(onClick = onExportOriginal) { Text("Original …") }
         }
+
+        Spacer(Modifier.width(12.dp))
+        TextButton(onClick = onSync) { Text("Sync") }
+        TextButton(onClick = onWebdavSettings) { Text("Server …") }
 
         Spacer(Modifier.width(12.dp))
         TextButton(onClick = onUndo, enabled = page?.canUndo() == true) { Text("Rückgängig") }

@@ -20,6 +20,7 @@ import com.inktest.ResizeImageBox
 import com.inktest.RemoveLinkBox
 import com.inktest.RemoveTextBox
 import com.inktest.SchoolYear
+import com.inktest.SkriboSync
 import com.inktest.Section
 import com.inktest.TextBox
 
@@ -323,6 +324,43 @@ class DocumentController(
     }
 
     fun flush() = repository.flush()
+
+    // ---------------- Synchronisierung ----------------
+
+    val webdavConfigured: Boolean get() = prefs?.webdavConfigured == true
+
+    val webdavServer: String get() = prefs?.webdavServer.orEmpty()
+    val webdavUsername: String get() = prefs?.webdavUsername.orEmpty()
+    val webdavPassword: String get() = prefs?.webdavPassword.orEmpty()
+
+    fun setWebdav(server: String, user: String, password: String) {
+        prefs?.webdavServer = server
+        prefs?.webdavUsername = user
+        prefs?.webdavPassword = password
+        revision++
+    }
+
+    private fun sync(server: String, user: String, password: String) = SkriboSync(
+        settings = {
+            SkriboSync.SyncConfig(server, user, password, schoolYear)
+        },
+        assetRoot = repository.rootDir,
+    )
+
+    /** Prüft die Verbindung; gibt `null` zurück, wenn alles stimmt. */
+    fun testConnection(server: String, user: String, password: String): String? =
+        runCatching { sync(server, user, password).testConnection() }
+            .fold(onSuccess = { null }, onFailure = { it.message ?: "Unbekannter Fehler" })
+
+    /**
+     * Schiebt alle Abschnitte mit WebDAV-Pfad auf den Server — Basis, die Ebene
+     * des aktuellen Schuljahrs und die Assets. Vorher wird alles Ausstehende
+     * geschrieben, sonst ginge die letzte Änderung nicht mit.
+     */
+    fun push(): SkriboSync.SyncResult {
+        repository.flush()
+        return sync(webdavServer, webdavUsername, webdavPassword).pushDocument(document)
+    }
 
     /** Wo importierte Bilder und gerenderte PDF-Seiten liegen. */
     val assetsDir: java.io.File get() = repository.assetsDir
