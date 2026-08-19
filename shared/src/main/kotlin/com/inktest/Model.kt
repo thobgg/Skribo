@@ -257,7 +257,16 @@ class Section(
     fun addSubpageOf(parent: Page, newPage: Page) {
         newPage.parentId = parent.id
         val idx = pages.indexOf(parent)
-        if (idx >= 0) pages.add(idx + 1, newPage) else pages.add(newPage)
+        if (idx < 0) {
+            pages.add(newPage)
+            return
+        }
+        // Hinter die bereits vorhandenen Unterseiten einsortieren. Direkt hinter
+        // die Elternseite gesetzt, stünden neue Unterseiten sonst vor den älteren.
+        val byId = pages.associateBy { it.id }
+        var insert = idx + 1
+        while (insert < pages.size && isDescendantOf(pages[insert], parent, byId)) insert++
+        pages.add(insert, newPage)
     }
 
     fun removePage(page: Page): List<Page> {

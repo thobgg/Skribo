@@ -21,4 +21,7 @@ object AppPaths {
         }
         return File(base, "skribo")
     }
+
+    /** Geräte-Einstellungen (zuletzt geöffneter Abschnitt/Seite, …). */
+    fun settingsFile(): File = File(documentRoot(), "desktop.properties")
 }

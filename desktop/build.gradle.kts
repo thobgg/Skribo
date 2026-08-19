@@ -26,6 +26,12 @@ dependencies {
 
     // Auf Android kommt org.json aus der Plattform, auf der JVM nicht.
     implementation(libs.json)
+
+    testImplementation(libs.kotlin.test)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 compose.desktop {
