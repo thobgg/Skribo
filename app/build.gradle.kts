@@ -1,16 +1,17 @@
+// AGP 9 bringt die Kotlin-Unterstützung mit — ein separates
+// org.jetbrains.kotlin.android kollidiert mit der eingebauten `kotlin`-Extension.
 plugins {
-    id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    alias(libs.plugins.android.application)
 }
 
 android {
     namespace = "com.inktest"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.inktest"
         minSdk = 24
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
@@ -29,23 +30,25 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         viewBinding = false
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
 dependencies {
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.google.android.material:material:1.12.0")
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.material)
 
     // Motion prediction (MotionEventPredictor).
-    implementation("androidx.input:input-motionprediction:1.0.0-beta05")
+    implementation(libs.androidx.input.motionprediction)
 
     // WebDAV sync (HTTP client).
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.okhttp)
 }
