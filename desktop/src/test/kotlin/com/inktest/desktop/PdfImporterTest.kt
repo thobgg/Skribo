@@ -11,6 +11,7 @@ import java.io.File
 import java.nio.file.Files
 import javax.imageio.ImageIO
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
@@ -89,6 +90,43 @@ class PdfImporterTest {
         val pages = PdfImporter(File(dir, "assets")).import(pdf, dpi = 36f)
 
         assertEquals(PageFormat.A4_LANDSCAPE, pages.single().format)
+    }
+
+    @Test
+    fun `das original wird mitgespeichert und ist lesbar`() {
+        val dir = tempDir("skribo-pdf-original")
+        val pdf = makePdf(dir, "Handzettel.pdf", 3, PDRectangle.A4)
+        val originalBytes = pdf.readBytes()
+
+        val pages = PdfImporter(File(dir, "assets")).import(pdf, dpi = 36f)
+
+        // Alle Seiten eines Imports zeigen auf dieselbe Originaldatei.
+        val paths = pages.mapNotNull { it.background.sourceAssetPath }.distinct()
+        assertEquals(1, paths.size)
+        val stored = File(dir, paths.single())
+        assertTrue(stored.exists(), "Original fehlt: ${paths.single()}")
+        assertTrue(stored.name.endsWith(".pdf"))
+        // Unverändert — die Schüler sollen genau dieses Blatt ausdrucken.
+        assertContentEquals(originalBytes, stored.readBytes())
+    }
+
+    @Test
+    fun `das original ueberlebt speichern und neu einlesen`() {
+        val dir = tempDir("skribo-pdf-original-persist")
+        val store = DocumentStore(dir)
+        val c = DocumentController(Document.default(), DesktopRepository(store))
+        val pdf = makePdf(dir, "Arbeitsblatt.pdf", 2, PDRectangle.A4)
+
+        c.addImportedPages(PdfImporter(store.assetsDir).import(pdf, dpi = 36f))
+        c.flush()
+
+        val reloaded = DocumentStore(dir).load()
+        val page = reloaded.sections.first().pages.first { it.background != null }
+        val bg = page.background!!
+        assertEquals("Arbeitsblatt.pdf", bg.sourceName)
+        val storedPath = bg.sourceAssetPath
+        assertTrue(storedPath != null, "Verweis aufs Original ging beim Speichern verloren")
+        assertTrue(File(dir, storedPath!!).exists())
     }
 
     @Test

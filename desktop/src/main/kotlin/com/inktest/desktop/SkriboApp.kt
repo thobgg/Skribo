@@ -88,6 +88,21 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         }
     }
 
+    /** Gibt das beim Import mitgespeicherte Original wieder heraus. */
+    fun exportOriginal() {
+        val bg = controller.activePage?.background ?: return
+        val assetPath = bg.sourceAssetPath ?: return
+        val stored = java.io.File(controller.rootDir, assetPath)
+        if (!stored.exists()) {
+            dialog = AppDialog.Message("Das Original ist im Dokument nicht mehr auffindbar.")
+            return
+        }
+        val target = FilePicker.savePdf(null, bg.sourceName ?: "Original.pdf") ?: return
+        runCatching { stored.copyTo(target, overwrite = true) }
+            .onSuccess { dialog = AppDialog.Message("Gespeichert:\n${target.absolutePath}") }
+            .onFailure { dialog = AppDialog.Message("Speichern fehlgeschlagen:\n${it.message}") }
+    }
+
     fun importImage() {
         val page = controller.activePage ?: return
         val file = FilePicker.openImage(null) ?: return
@@ -146,6 +161,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         onImportPdf = ::importPdf,
                         onImportImage = ::importImage,
                         onAddLink = { dialog = AppDialog.NewLink },
+                        onExportOriginal = ::exportOriginal,
                     )
                     HorizontalDivider()
                     Box(Modifier.fillMaxSize()) {
@@ -452,6 +468,7 @@ private fun PageToolbar(
     onImportPdf: () -> Unit,
     onImportImage: () -> Unit,
     onAddLink: () -> Unit,
+    onExportOriginal: () -> Unit,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
 
@@ -479,6 +496,10 @@ private fun PageToolbar(
         TextButton(onClick = onImportPdf) { Text("PDF …") }
         TextButton(onClick = onImportImage, enabled = page != null) { Text("Bild …") }
         TextButton(onClick = onAddLink, enabled = page != null) { Text("Video-Link …") }
+        // Nur bei Seiten, die aus einem PDF stammen — sonst gibt es nichts herauszugeben.
+        if (page?.background?.sourceAssetPath != null) {
+            TextButton(onClick = onExportOriginal) { Text("Original …") }
+        }
 
         Spacer(Modifier.width(12.dp))
         TextButton(onClick = onUndo, enabled = page?.canUndo() == true) { Text("Rückgängig") }

@@ -153,6 +153,8 @@ class SkriboSync(private val settings: () -> SyncConfig) {
                 put("src", bg.assetPath)
                 bg.sourceName?.let { put("sourceName", it) }
                 bg.sourcePage?.let { put("sourcePage", it) }
+                // Das Original wandert mit — es ist der Handzettel für die Schüler.
+                bg.sourceAssetPath?.let { put("sourceFile", it) }
             })
         }
         put("paper", JSONObject().apply {

@@ -33,6 +33,15 @@ class PdfImporter(private val assetsDir: File) {
     fun import(pdf: File, dpi: Float = RENDER_DPI): List<ImportedPage> {
         assetsDir.mkdirs()
         val baseName = pdf.nameWithoutExtension
+
+        // Das Original mit ins Dokument nehmen: Es ist der Handzettel, den die
+        // Schüler später zum Ausdrucken bekommen. Läge es nur auf diesem Rechner,
+        // wäre es beim nächsten Schuljahr womöglich weg.
+        val sourceId = UUID.randomUUID().toString()
+        val sourceCopy = File(assetsDir, "$sourceId.pdf")
+        pdf.copyTo(sourceCopy, overwrite = true)
+        val sourceAsset = "assets/$sourceId.pdf"
+
         return Loader.loadPDF(pdf).use { document ->
             val renderer = PDFRenderer(document)
             (0 until document.numberOfPages).map { index ->
@@ -51,6 +60,7 @@ class PdfImporter(private val assetsDir: File) {
                         assetPath = "assets/$assetId.png",
                         sourceName = pdf.name,
                         sourcePage = index + 1,
+                        sourceAssetPath = sourceAsset,
                     ),
                 )
             }

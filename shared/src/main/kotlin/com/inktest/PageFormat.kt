@@ -59,18 +59,31 @@ class PageBackground(
     var sourceName: String? = null,
     /** 1-basierte Seitennummer in der Ursprungsdatei. */
     var sourcePage: Int? = null,
+    /**
+     * Die **Originaldatei selbst**, im Dokument abgelegt (z. B. `assets/<id>.pdf`).
+     * Sie wird gebraucht, um Schülern den unveränderten Handzettel zum Ausdrucken
+     * zu geben. Ohne sie hinge das am Zufall, ob die Quelldatei noch auf dem
+     * Rechner liegt — Seiten und Vorlage sollen aber Jahre überdauern.
+     * Alle Seiten eines Imports zeigen auf dieselbe Datei.
+     */
+    var sourceAssetPath: String? = null,
 ) {
     fun toJson(): org.json.JSONObject = org.json.JSONObject().apply {
         put("assetPath", assetPath)
         sourceName?.let { put("sourceName", it) }
         sourcePage?.let { put("sourcePage", it) }
+        sourceAssetPath?.let { put("sourceAssetPath", it) }
     }
 
     companion object {
+        private fun org.json.JSONObject.optStringOrNull(key: String): String? =
+            if (has(key) && !isNull(key)) getString(key) else null
+
         fun fromJson(j: org.json.JSONObject): PageBackground = PageBackground(
             assetPath = j.getString("assetPath"),
-            sourceName = if (j.has("sourceName") && !j.isNull("sourceName")) j.getString("sourceName") else null,
+            sourceName = j.optStringOrNull("sourceName"),
             sourcePage = if (j.has("sourcePage") && !j.isNull("sourcePage")) j.getInt("sourcePage") else null,
+            sourceAssetPath = j.optStringOrNull("sourceAssetPath"),
         )
     }
 }

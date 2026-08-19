@@ -17,6 +17,21 @@ object FilePicker {
     fun openImage(parent: Frame?): File? =
         open(parent, "Bild öffnen", listOf("png", "jpg", "jpeg", "gif", "bmp"))
 
+    /**
+     * Zielpfad zum Speichern erfragen. [suggestedName] steht schon im Feld —
+     * der Handzettel soll unter seinem ursprünglichen Namen landen, nicht unter
+     * einer zufälligen Asset-Kennung.
+     */
+    fun savePdf(parent: Frame?, suggestedName: String): File? {
+        val dialog = FileDialog(parent, "Original speichern unter", FileDialog.SAVE).apply {
+            file = suggestedName
+            isVisible = true
+        }
+        val dir = dialog.directory ?: return null
+        val name = dialog.file ?: return null
+        return File(dir, if (name.lowercase().endsWith(".pdf")) name else "$name.pdf")
+    }
+
     private fun open(parent: Frame?, title: String, extensions: List<String>): File? {
         val dialog = FileDialog(parent, title, FileDialog.LOAD).apply {
             // Nur unter Linux/GTK wirksam; Windows und macOS ignorieren den
