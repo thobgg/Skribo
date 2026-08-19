@@ -121,6 +121,14 @@ class Prefs(context: Context) {
         get() = sp.getLong(KEY_LAST_SYNC, 0L)
         set(v) = sp.edit { putLong(KEY_LAST_SYNC, v) }
 
+    /** Verbindungsdaten für den plattformfreien [SkriboSync]. */
+    fun syncConfig(): SkriboSync.SyncConfig = SkriboSync.SyncConfig(
+        server = webdavServer,
+        username = webdavUsername,
+        password = webdavPassword,
+        schoolYear = activeSchoolYear,
+    )
+
     var toolbarFloating: Boolean
         get() = sp.getBoolean(KEY_TOOLBAR_FLOATING, false)
         set(v) = sp.edit { putBoolean(KEY_TOOLBAR_FLOATING, v) }

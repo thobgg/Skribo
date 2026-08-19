@@ -1,15 +1,12 @@
 package com.inktest
 
-import android.graphics.Color
-import android.graphics.Path
-import android.graphics.Rect
 import org.json.JSONArray
 import org.json.JSONObject
 
 enum class SmoothingAlgo { BEZIER, CATMULL_ROM, WMA }
 
 class Stroke(
-    val color: Int = Color.BLACK,
+    val color: Int = COLOR_BLACK,
     val width: Float = 4f,
     val smoothingFactor: Float = 0.5f,
     val algo: SmoothingAlgo = SmoothingAlgo.BEZIER,
@@ -19,11 +16,15 @@ class Stroke(
     var size: Int = 0
         private set
 
-    private val bbox = Rect()
-    private var minX = Float.POSITIVE_INFINITY
-    private var minY = Float.POSITIVE_INFINITY
-    private var maxX = Float.NEGATIVE_INFINITY
-    private var maxY = Float.NEGATIVE_INFINITY
+    /** Bounding-Box in Weltkoordinaten; bei leerem Strich „umgedreht" (min > max). */
+    var minX = Float.POSITIVE_INFINITY
+        private set
+    var minY = Float.POSITIVE_INFINITY
+        private set
+    var maxX = Float.NEGATIVE_INFINITY
+        private set
+    var maxY = Float.NEGATIVE_INFINITY
+        private set
 
     fun x(i: Int): Float = xs[i]
     fun y(i: Int): Float = ys[i]
@@ -53,20 +54,6 @@ class Stroke(
         if (sy > maxY) maxY = sy
     }
 
-    fun bounds(pad: Float, out: Rect = bbox): Rect {
-        if (size == 0) {
-            out.set(0, 0, 0, 0)
-            return out
-        }
-        out.set(
-            (minX - pad).toInt(),
-            (minY - pad).toInt(),
-            (maxX + pad).toInt() + 1,
-            (maxY + pad).toInt() + 1,
-        )
-        return out
-    }
-
     private fun ensureCapacity(min: Int) {
         if (min <= xs.size) return
         val newCap = maxOf(min, xs.size * 2)
@@ -74,7 +61,7 @@ class Stroke(
         ys = ys.copyOf(newCap)
     }
 
-    fun buildPath(out: Path) {
+    fun buildPath(out: PathSink) {
         out.rewind()
         if (size == 0) return
         out.moveTo(xs[0], ys[0])
@@ -93,7 +80,7 @@ class Stroke(
         }
     }
 
-    private fun buildBezier(out: Path) {
+    private fun buildBezier(out: PathSink) {
         for (i in 1 until size - 1) {
             val midX = (xs[i] + xs[i + 1]) * 0.5f
             val midY = (ys[i] + ys[i + 1]) * 0.5f
@@ -102,7 +89,7 @@ class Stroke(
         out.lineTo(xs[size - 1], ys[size - 1])
     }
 
-    private fun buildCatmullRom(out: Path) {
+    private fun buildCatmullRom(out: PathSink) {
         // Uniform Catmull-Rom (τ = 0.5) expressed as cubic Bezier per segment:
         // for segment p1..p2, c1 = p1 + (p2 - p0)/6, c2 = p2 - (p3 - p1)/6.
         // Endpoints are duplicated so the curve still passes through the first
@@ -122,7 +109,7 @@ class Stroke(
         }
     }
 
-    private fun buildWma(out: Path) {
+    private fun buildWma(out: PathSink) {
         // Trailing 4-tap WMA, linear weights [1,2,3,4]. For i < 3 the window
         // clamps to the first sample (so the curve still starts at p0).
         val w0 = 1f; val w1 = 2f; val w2 = 3f; val w3 = 4f
@@ -155,6 +142,9 @@ class Stroke(
 
     companion object {
         const val INITIAL_CAPACITY = 128
+
+        /** Entspricht `android.graphics.Color.BLACK` — hier plattformfrei als ARGB. */
+        const val COLOR_BLACK: Int = 0xFF000000.toInt()
 
         fun fromJson(j: JSONObject): Stroke {
             val color = j.getInt("color")

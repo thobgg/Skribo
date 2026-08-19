@@ -40,10 +40,13 @@ selbst hostbar, Datenhoheit bei der Schule.
 └─────────────────────┘                        └──────────────────────┘
 ```
 
-- **Monorepo:** beide Clients in diesem Repository.
-  - `app/` — Android-Board-Client (Kotlin, Android Views, landscape/tablet-first).
-  - Desktop-Client — folgt (Verzeichnis noch offen).
-- **Datenmodell** (`app/.../Model.kt`): Abschnitte → Seiten → Unterseiten;
+- **Monorepo:** beide Clients plus ihr gemeinsamer Kern in diesem Repository.
+  - `shared/` — plattformfreier Kern (Kotlin/JVM): Datenmodell, On-Disk- und
+    WebDAV-Schema, Strich-Mathematik. **Existiert nur einmal** und wird von
+    beiden Clients benutzt — das verhindert Schema-Drift.
+  - `android/` — Board-Client (Kotlin, Android Views, landscape/tablet-first).
+  - `desktop/` — Planungs-Client (Compose Multiplatform) — folgt in M3.
+- **Datenmodell** (`shared/.../Model.kt`): Abschnitte → Seiten → Unterseiten;
   Werkzeuge Pen/Highlighter/Line/Text/Image/Eraser; Papierstile
   Blank/Lined/Grid/Dots/Legal.
 - **Rollenteilung der Clients:** Der Desktop-Client ist reiner Planungs- und
@@ -51,10 +54,18 @@ selbst hostbar, Datenhoheit bei der Schule.
   von Medien** (PDF-Dokumente, Bilder, Videos, Audios, …) in die Seiten.
   Handschrift/Annotation passiert am Board. Das Schema muss dafür über
   Text-/Bildboxen hinaus Medienboxen bekommen (→ §2a, schemaVersion erhöhen).
-- **Sync** (`app/.../SkriboSync.kt`): WebDAV via OkHttp, HTTP Basic Auth. Push-only
+- **Sync** (`shared/.../SkriboSync.kt`): WebDAV via OkHttp, HTTP Basic Auth. Push-only
   (Pull/Bidirektional = M4). Details siehe **§2a**.
-- **Ink-Engine** (`InkView.kt`, `Stroke.kt`): Glättung (Bézier / Catmull-Rom / WMA),
-  Motion-Prediction, umfangreiches Tuning-/Metrics-Panel für Latenz-Benchmarks.
+- **Persistenz** (`shared/.../DocumentStore.kt`): atomares Schreiben des lokalen
+  Dokuments; das Debouncing macht der jeweilige Client (`android/Repository.kt`).
+- **Ink-Engine:** Die Glättung (Bézier / Catmull-Rom / WMA) liegt plattformfrei in
+  `shared/Stroke.kt` und schreibt in einen [`PathSink`] — Android füllt damit ein
+  `android.graphics.Path` (`AndroidPathSink`), der Desktop später einen Skia-Pfad.
+  Rendering, Motion-Prediction und das Tuning-/Metrics-Panel für Latenz-Benchmarks
+  bleiben in `android/InkView.kt`.
+- **Plattform-Seams:** `PathSink` (Rendering), `SkriboLog` (Logging),
+  `SkriboSync.SyncConfig` (Zugangsdaten) — mehr braucht der Kern nicht, um
+  Android-frei zu bleiben.
 
 ## 2a. Infrastruktur & WebDAV-Pfad-Konvention
 
@@ -116,9 +127,10 @@ produktionsreif.
       Linie/Text/Bild/Radierer), Papierstile stabil und bedienbar; Dokumentmodell
       & Navigation (Abschnitte/Seiten/Unterseiten, Umbenennen/Löschen, robuste
       lokale Persistenz)
-- [ ] **M2 — Toolchain & Shared-Modul:** Gradle 9.x / Kotlin 2.x / AGP 9.x;
-      Monorepo-Umbau zu `shared/` (Model, JSON-Schema, `SkriboSync`) +
-      `android/` + `desktop/` — Schema-Code existiert danach nur noch **einmal**
+- [x] **M2 — Toolchain & Shared-Modul:** Gradle 9.4.1 / AGP 9.2.1 / Kotlin 2.2.x,
+      Versionskatalog; Monorepo-Umbau zu `shared/` + `android/`. Modell,
+      Schema, Sync und Strich-Mathematik liegen jetzt **einmal** in `shared/`
+      und sind ohne Emulator unit-testbar → **erledigt**
 - [ ] **M3 — Desktop-Client MVP (Compose Multiplatform):** OneNote-artige
       Planungsoberfläche, **kein Ink** — Kern ist die Medien-Einbindung
       (PDF, Bilder, Video, Audio) inkl. Schema-Erweiterung (schemaVersion 2);

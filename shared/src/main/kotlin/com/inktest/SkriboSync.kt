@@ -1,6 +1,5 @@
 package com.inktest
 
-import android.util.Log
 import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -27,7 +26,19 @@ import java.util.concurrent.TimeUnit
  *
  * Pull is not yet implemented; this class is push-only.
  */
-class SkriboSync(private val prefs: Prefs) {
+class SkriboSync(private val settings: () -> SyncConfig) {
+
+    /**
+     * Verbindungsdaten für den WebDAV-Server. Wird bei jedem Aufruf frisch
+     * geholt, damit Änderungen in den Einstellungen sofort greifen — auf Android
+     * aus `Prefs`, auf dem Desktop aus dessen eigener Konfiguration.
+     */
+    data class SyncConfig(
+        val server: String,
+        val username: String,
+        val password: String,
+        val schoolYear: String,
+    )
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -42,10 +53,11 @@ class SkriboSync(private val prefs: Prefs) {
      */
     @Throws(IOException::class)
     fun testConnection() {
-        val server = prefs.webdavServer.trimEnd('/')
+        val cfg = settings()
+        val server = cfg.server.trimEnd('/')
         if (server.isEmpty()) throw IOException("Server-URL nicht gesetzt")
-        if (prefs.webdavUsername.isEmpty()) throw IOException("Benutzername nicht gesetzt")
-        val auth = Credentials.basic(prefs.webdavUsername, prefs.webdavPassword)
+        if (cfg.username.isEmpty()) throw IOException("Benutzername nicht gesetzt")
+        val auth = Credentials.basic(cfg.username, cfg.password)
         val req = Request.Builder()
             .url("$server/")
             .header("Authorization", auth)
@@ -74,11 +86,12 @@ class SkriboSync(private val prefs: Prefs) {
 
     @Throws(IOException::class)
     fun pushDocument(doc: Document): SyncResult {
-        val server = prefs.webdavServer.trimEnd('/')
+        val cfg = settings()
+        val server = cfg.server.trimEnd('/')
         if (server.isEmpty()) throw IOException("Server-URL nicht gesetzt")
-        if (prefs.webdavUsername.isEmpty()) throw IOException("Benutzername nicht gesetzt")
-        val auth = Credentials.basic(prefs.webdavUsername, prefs.webdavPassword)
-        val year = prefs.activeSchoolYear
+        if (cfg.username.isEmpty()) throw IOException("Benutzername nicht gesetzt")
+        val auth = Credentials.basic(cfg.username, cfg.password)
+        val year = cfg.schoolYear
 
         var pageCount = 0
         val errors = mutableListOf<String>()
@@ -94,7 +107,7 @@ class SkriboSync(private val prefs: Prefs) {
                     pushPage(server, auth, parentTopicPath, parent, year)
                     pageCount++
                 } catch (e: Exception) {
-                    Log.w(TAG, "push parent '${parent.title}': ${e.message}")
+                    SkriboLog.w(TAG, "push parent '${parent.title}': ${e.message}")
                     errors += "${parent.title}: ${e.message}"
                 }
                 val subpages = section.pages.filter { it.parentId == parent.id }
@@ -104,13 +117,13 @@ class SkriboSync(private val prefs: Prefs) {
                         pushPage(server, auth, subPath, sub, year)
                         pageCount++
                     } catch (e: Exception) {
-                        Log.w(TAG, "push sub '${sub.title}': ${e.message}")
+                        SkriboLog.w(TAG, "push sub '${sub.title}': ${e.message}")
                         errors += "${sub.title}: ${e.message}"
                     }
                 }
             }
         }
-        prefs.lastSyncTime = System.currentTimeMillis()
+        // Zeitstempel setzt der Aufrufer — er kennt seinen Einstellungs-Speicher.
         return SyncResult(pageCount, errors)
     }
 

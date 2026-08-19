@@ -13,10 +13,14 @@ wird, fließt zurück.
 
 Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV teilen:
 
-| Client | Verzeichnis | Zweck | Status |
-|--------|-------------|-------|--------|
-| **Board-Client** (Android) | [`app/`](./app/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
+| Modul | Verzeichnis | Zweck | Status |
+|-------|-------------|-------|--------|
+| **Kern** (plattformfrei) | [`shared/`](./shared/) | Datenmodell, On-Disk-/WebDAV-Schema, Strich-Mathematik | ✅ |
+| **Board-Client** (Android) | [`android/`](./android/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
 | **Desktop-Client** (Planung) | _folgt_ | OneNote-artige Unterrichtsplanung am PC — Compose Multiplatform, Linux/Win 11/macOS | geplant |
+
+Beide Clients teilen sich `shared/` — das Schema existiert dadurch nur an einer
+Stelle und kann zwischen Board und Desktop nicht auseinanderlaufen.
 
 > **Stand heute:** Der Android-Client ist ein **rudimentärer Prototyp**, entstanden
 > als Latenz-Test auf einem echten CTOUCH-Board. Der Test war **erfolgreich** (die
@@ -56,13 +60,14 @@ gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
 | Sprache / UI   | Kotlin, Android Views (kein Compose), landscape / tablet-first |
 | Ink-Prediction | `androidx.input:input-motionprediction` |
 | Sync           | WebDAV über OkHttp |
-| Min / Target   | `minSdk 24`, `targetSdk 34`, `compileSdk 34` |
+| Min / Target   | `minSdk 24`, `targetSdk 36`, `compileSdk 36` |
 
 ## Build (Board-Client)
 
 ```bash
-./gradlew :app:assembleDebug     # APK bauen
-./gradlew :app:installDebug      # auf angeschlossenem Board/Gerät/Emulator installieren
+./gradlew :android:assembleDebug   # APK bauen
+./gradlew :android:installDebug    # auf angeschlossenem Board/Gerät/Emulator installieren
+./gradlew :shared:test             # Kern testen (ohne Gerät/Emulator)
 ```
 
 > Voraussetzung: Android SDK. Lokale Pfade (`sdk.dir`, JDK) stehen in

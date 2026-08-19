@@ -145,7 +145,9 @@ class InkView @JvmOverloads constructor(
     private val imageBitmapCache = mutableMapOf<String, Bitmap>()
     /** Lookup-Function für ImageBox.assetPath → Bitmap. Wird von MainActivity gesetzt. */
     var imageLoader: ((String) -> Bitmap?)? = null
-    private val reusablePath = Path()
+    // Einmal angelegt und wiederverwendet: drawStroke läuft pro Frame.
+    private val pathSink = AndroidPathSink()
+    private val reusablePath = pathSink.path
     private val damageRectBuf = Rect()
     private val clipRectBuf = Rect()
     private val eraserHitBuf = Rect()
@@ -458,11 +460,11 @@ class InkView @JvmOverloads constructor(
             val r = stroke.bounds(stroke.width + 4f, clipRectBuf)
             val saved = canvas.save()
             canvas.clipRect(r)
-            stroke.buildPath(reusablePath)
+            stroke.buildPath(pathSink)
             canvas.drawPath(reusablePath, strokePaint)
             canvas.restoreToCount(saved)
         } else {
-            stroke.buildPath(reusablePath)
+            stroke.buildPath(pathSink)
             canvas.drawPath(reusablePath, strokePaint)
         }
     }

@@ -970,7 +970,7 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Verbindung wird getestet …", Toast.LENGTH_SHORT).show()
                 Thread {
                     try {
-                        SkriboSync(prefs).testConnection()
+                        SkriboSync(prefs::syncConfig).testConnection()
                         runOnUiThread {
                             Toast.makeText(this, "✓ Verbindung OK", Toast.LENGTH_LONG).show()
                         }
@@ -1015,7 +1015,8 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Sync läuft …", Toast.LENGTH_SHORT).show()
         Thread {
             try {
-                val result = SkriboSync(prefs).pushDocument(document)
+                val result = SkriboSync(prefs::syncConfig).pushDocument(document)
+                prefs.lastSyncTime = System.currentTimeMillis()
                 runOnUiThread {
                     val msg = buildString {
                         append("Sync fertig — ${result.pageCount} Seite(n) gepusht")

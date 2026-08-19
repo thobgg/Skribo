@@ -3,8 +3,8 @@
 # ─────────────────────────────────────────────────────────────
 *.iml
 .gradle/
-/build
-/app/build
+# Modul-unabhängig: greift für /build, /android/build, /shared/build, /desktop/build …
+build/
 /captures
 .externalNativeBuild
 .cxx/
