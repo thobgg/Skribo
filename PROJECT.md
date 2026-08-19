@@ -197,14 +197,22 @@ produktionsreif.
 
 ## 6. Getroffene Entscheidungen
 
-- **Sync-Ziel: eigenes NAS statt OneDrive.** Abgewogen wurde OneDrive vs.
-  selbst gehostetes NAS-WebDAV; Wahl fiel auf das **NAS**. Begründung
-  nachgeschärft (19.08.2026): Das DSGVO-Argument trägt nur begrenzt, da an der
-  Schule ohnehin Teams/MS 365 läuft. Tragfähig sind zwei andere Gründe —
-  **der Tenant gehört der Schule, nicht dir** (bei Schulwechsel ist alles weg,
-  während ein mehrjähriges Vorbereitungsarchiv gerade überdauern soll), und
-  **OneDrive kann kein brauchbares WebDAV** (es bräuchte Graph-API mit
-  MSAL-Anmeldung in beiden Clients, oft mit Administrator-Zustimmung).
+- **Sync-Ziel: eigenes NAS statt OneDrive.** Gegengeprüft am 19.08.2026 — das
+  Ergebnis bleibt, die Begründung ist eine andere:
+  1. **Die Anmeldung am Board.** MS Auth am CTOUCH hakelte in der Praxis immer
+     extrem. Ein Speicherort, der genau diese Anmeldung erzwingt, wäre die
+     falsche Wahl. WebDAV mit HTTP Basic Auth wird einmal eingetragen und
+     läuft — kein interaktiver Login, kein ablaufendes Token, kein
+     persönliches Konto auf einem Gerät, vor dem der ganze Kurs steht.
+  2. **Aufwand.** OneDrive kann kein brauchbares WebDAV; es bräuchte die
+     Graph-API mit MSAL-Anmeldung in *beiden* Clients, oft samt Zustimmung
+     der Administration.
+
+  **Nicht** tragend ist das Datensouveränitäts-Argument: Es geht um
+  Berufliches, nicht Privates, und an der Schule läuft ohnehin Teams/MS 365.
+  Material im Tenant der Schule zu halten wäre grundsätzlich vertretbar — es
+  scheitert an 1. und 2., nicht am Prinzip.
+
   Der WebDAV-Server ist bereits eingerichtet.
 - **Zwei-Client-System in einem Monorepo** (Board + Desktop).
 - **Desktop-Stack: Compose Multiplatform (Kotlin).** (2026-08-19) Abgewogen
