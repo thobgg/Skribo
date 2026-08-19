@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +43,7 @@ import com.inktest.Page
 import com.inktest.PageFormat
 import com.inktest.PaperStyle
 import com.inktest.PositionedBox
+import com.inktest.SchoolYear
 import com.inktest.Section
 import com.inktest.TextBox
 import kotlinx.coroutines.Dispatchers
@@ -120,6 +122,9 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         Column {
             SectionTabs(
                 revision = controller.revision,
+                activeYear = controller.schoolYear,
+                availableYears = controller.availableYears(),
+                onSelectYear = controller::switchYear,
                 sections = controller.document.sections,
                 active = controller.activeSection,
                 onSelect = controller::selectSection,
@@ -338,6 +343,9 @@ private const val LINK_DROP_Y = 40f
 @Composable
 private fun SectionTabs(
     revision: Int,
+    activeYear: String,
+    availableYears: List<String>,
+    onSelectYear: (String) -> Unit,
     sections: List<Section>,
     active: Section?,
     onSelect: (Section) -> Unit,
@@ -351,6 +359,11 @@ private fun SectionTabs(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        // Schuljahr ganz links: Es bestimmt, welche Handschrift überhaupt zu
+        // sehen ist — das gehört sichtbar an den Anfang, nicht in ein Untermenü.
+        SchoolYearPicker(revision, activeYear, availableYears, onSelectYear)
+        VerticalDivider(Modifier.height(24.dp))
+
         sections.forEach { section ->
             val selected = section === active
             ContextMenuArea(items = {
@@ -537,6 +550,42 @@ private fun formatLabel(page: Page): String {
     val bg = page.background ?: return format
     val source = bg.sourceName ?: return "$format · Vorlage"
     return bg.sourcePage?.let { "$format · $source, S. $it" } ?: "$format · $source"
+}
+
+/**
+ * Auswahl des Schuljahrs. Ein Wechsel tauscht nur die Handschrift-Ebene aus;
+ * Seiten, Vorlagen und Texte bleiben, wie sie sind.
+ */
+@Composable
+private fun SchoolYearPicker(
+    revision: Int,
+    active: String,
+    years: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    @Suppress("UNUSED_EXPRESSION") revision
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) { Text("Schuljahr $active") }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            years.forEach { year ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (year == active) "$year  ✓" else year,
+                            fontWeight = if (year == active) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = { onSelect(year); open = false },
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Neues Schuljahr ${SchoolYear.next(years.first())} beginnen") },
+                onClick = { onSelect(SchoolYear.next(years.first())); open = false },
+            )
+        }
+    }
 }
 
 private fun paperLabel(style: PaperStyle): String = when (style) {

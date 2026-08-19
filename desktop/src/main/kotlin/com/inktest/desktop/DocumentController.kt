@@ -19,6 +19,7 @@ import com.inktest.RemoveImageBox
 import com.inktest.ResizeImageBox
 import com.inktest.RemoveLinkBox
 import com.inktest.RemoveTextBox
+import com.inktest.SchoolYear
 import com.inktest.Section
 import com.inktest.TextBox
 
@@ -38,6 +39,37 @@ class DocumentController(
     /** Zähler, der jede Modelländerung sichtbar macht. Nur lesen. */
     var revision by mutableStateOf(0)
         private set
+
+    /** Schuljahr, dessen Annotationsebene gerade bearbeitet wird. */
+    var schoolYear by mutableStateOf(prefs?.activeSchoolYear ?: repository.year)
+        private set
+
+    /** Schuljahre, für die schon Handschrift vorliegt — plus das laufende. */
+    fun availableYears(): List<String> =
+        (repository.listYears() + schoolYear + SchoolYear.current()).distinct().sortedDescending()
+
+    /**
+     * Wechselt die Annotationsebene: Die Vorlagen bleiben, die Handschrift wird
+     * durch die des gewählten Jahres ersetzt. Für ein noch leeres Jahr heißt das
+     * eine saubere Fläche über demselben Material.
+     */
+    fun switchYear(year: String) {
+        if (year == schoolYear) return
+        repository.flush()
+        repository.year = year
+        schoolYear = year
+        prefs?.activeSchoolYear = year
+
+        val reloaded = repository.load()
+        document.sections.clear()
+        document.sections.addAll(reloaded.sections)
+        activeSection = document.sections.firstOrNull { it.id == activeSection?.id }
+            ?: document.sections.firstOrNull()
+        activePage = activeSection?.let { section ->
+            section.pages.firstOrNull { it.id == activePage?.id } ?: section.pages.firstOrNull()
+        }
+        revision++
+    }
 
     // Beim Start dort weitermachen, wo zuletzt gearbeitet wurde.
     var activeSection by mutableStateOf(

@@ -192,9 +192,15 @@ produktionsreif.
         Rückgängig/Wiederholen, WebDAV-Pfad je Abschnitt. Speichern
         gebündelt (400 ms) über den geteilten `DocumentStore`; die App
         öffnet wieder bei der zuletzt bearbeiteten Seite.
-  - [ ] Medien-Einbindung (PDF als Anhang/Ausdruck, Bilder, Video, Audio)
+  - [x] Medien: PDF-Import als Seitenfolge (Original wird mitgespeichert und
+        ist über „Original …" wieder herauszugeben), Bilder, YouTube-Verweise
+  - [x] Verschieben/Skalieren, Textbearbeitung auf der Seite, Scrollen/Zoomen
   - [ ] WebDAV direkt aus dem Desktop-Client
   - [ ] Paketierung (.deb / .msi / .dmg)
+- [ ] **M4a — Schuljahr-Ebenen:** lokal umgesetzt (Basis in `pages/`,
+      Handschrift in `annotations/<schuljahr>/`), Umschalter im Desktop-Client,
+      Board-Client schreibt in die Ebene seines eingestellten Schuljahrs.
+      Offen: Umschalter am Board, Vorjahr als Vorlage übernehmen.
 - [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
       Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
 - [ ] **M5 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die

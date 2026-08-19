@@ -16,6 +16,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
+private const val YEAR = "25-26"
+
 class PdfImporterTest {
 
     private fun tempDir(prefix: String) = Files.createTempDirectory(prefix).toFile()
@@ -120,7 +122,7 @@ class PdfImporterTest {
         c.addImportedPages(PdfImporter(store.assetsDir).import(pdf, dpi = 36f))
         c.flush()
 
-        val reloaded = DocumentStore(dir).load()
+        val reloaded = DocumentStore(dir).load(YEAR)
         val page = reloaded.sections.first().pages.first { it.background != null }
         val bg = page.background!!
         assertEquals("Arbeitsblatt.pdf", bg.sourceName)
@@ -149,7 +151,7 @@ class PdfImporterTest {
         c.flush()
 
         assertEquals(2, added)
-        val reloaded = DocumentStore(dir).load()
+        val reloaded = DocumentStore(dir).load(YEAR)
         val imported = reloaded.sections.first().pages.filter { it.background != null }
         assertEquals(2, imported.size)
         imported.forEach {

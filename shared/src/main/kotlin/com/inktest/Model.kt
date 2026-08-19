@@ -211,6 +211,44 @@ class Page(
         return true
     }
 
+    /**
+     * Die **stabile Basis** der Seite: alles, was über Schuljahre hinweg gleich
+     * bleibt — Titel, Format, die gerenderte Vorlage, Texte, Bilder, Verweise.
+     * Die Handschrift steckt getrennt davon in [toAnnotationsJson].
+     *
+     * Genau diese Trennung macht das Wiederverwenden möglich: dieselbe Vorlage
+     * kann Jahr für Jahr neu annotiert werden, ohne sie anzutasten.
+     */
+    fun toBaseJson(): JSONObject = toJson().apply { remove("strokes") }
+
+    /** Die Handschrift eines Schuljahrs — die jahresbezogene Ebene über der Basis. */
+    fun toAnnotationsJson(year: String): JSONObject = JSONObject().apply {
+        put("type", "skribo-annotations")
+        put("schoolYear", year)
+        put("pageId", id)
+        val arr = JSONArray()
+        strokes.forEach { arr.put(it.toJson()) }
+        put("strokes", arr)
+    }
+
+    /** Ersetzt die Striche durch die des geladenen Schuljahrs. */
+    fun applyAnnotations(j: JSONObject) {
+        strokes.clear()
+        j.optJSONArray("strokes")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                runCatching { Stroke.fromJson(arr.getJSONObject(i)) }
+                    .onSuccess { strokes.add(it) }
+            }
+        }
+        clearHistory()
+    }
+
+    /** Nach einem Jahreswechsel darf die Historie des Vorjahres nicht weitergelten. */
+    fun clearHistory() {
+        undoStack.clear()
+        redoStack.clear()
+    }
+
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("title", title)

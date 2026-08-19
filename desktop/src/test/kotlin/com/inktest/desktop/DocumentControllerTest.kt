@@ -14,6 +14,8 @@ import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
+private const val YEAR = "25-26"
+
 class DocumentControllerTest {
 
     private fun controller(): Pair<DocumentController, File> {
@@ -149,7 +151,7 @@ class DocumentControllerTest {
         c.addTextBox(page, 10f, 20f, "Merksatz")
         c.flush()
 
-        val reloaded = DocumentStore(dir).load()
+        val reloaded = DocumentStore(dir).load(YEAR)
         val section = reloaded.sections.first { it.name == "Geometrie" }
         val loadedPage = section.pages.single()
         assertEquals("Strahlensätze", loadedPage.title)
@@ -172,7 +174,7 @@ class DocumentControllerTest {
         first.flush()
 
         val reopened = DocumentController(
-            store.load(), repo, DesktopPrefs(File(dir, "desktop.properties")),
+            store.load(YEAR), repo, DesktopPrefs(File(dir, "desktop.properties")),
         )
 
         assertEquals(expectedSection, reopened.activeSection?.id)

@@ -13,7 +13,11 @@ import java.io.File
  * triggern. Das eigentliche Lesen/Schreiben macht der plattformfreie
  * [DocumentStore] — dieselbe Logik nutzt später der Desktop-Client.
  */
-class Repository(context: Context) {
+class Repository(
+    context: Context,
+    /** Schuljahr, in dessen Annotationsebene geschrieben wird. */
+    var year: String = SchoolYear.current(),
+) {
     private val store = DocumentStore(
         File(context.getExternalFilesDir(null) ?: context.filesDir, "inktest")
     )
@@ -30,14 +34,16 @@ class Repository(context: Context) {
         SkriboLog.sink = SkriboLog.Sink { tag, message -> Log.w(tag, message) }
     }
 
-    fun load(): Document = store.load()
+    fun load(): Document = store.load(year)
+
+    fun listYears(): List<String> = store.listYears()
 
     fun saveDocumentStructure(doc: Document) = scheduleSave("doc") {
         store.writeDocumentStructure(doc)
     }
 
     fun savePage(page: Page) = scheduleSave("page-${page.id}") {
-        store.writePage(page)
+        store.writePage(page, year)
     }
 
     fun deletePage(page: Page) {

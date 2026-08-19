@@ -4,6 +4,7 @@ import com.inktest.Document
 import com.inktest.DocumentStore
 import com.inktest.Page
 import com.inktest.SkriboLog
+import com.inktest.SchoolYear
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledFuture
@@ -15,7 +16,11 @@ import java.util.concurrent.TimeUnit
  * bei jedem Zeichen die Seite neu schreibt. Das eigentliche Lesen/Schreiben
  * macht der geteilte [DocumentStore].
  */
-class DesktopRepository(private val store: DocumentStore) {
+class DesktopRepository(
+    private val store: DocumentStore,
+    /** Schuljahr, in dessen Ebene geschrieben wird. Wechselt mit der Auswahl. */
+    var year: String = SchoolYear.current(),
+) {
 
     private val scheduler = Executors.newSingleThreadScheduledExecutor { r ->
         Thread(r, "skribo-save").apply { isDaemon = true }
@@ -25,14 +30,16 @@ class DesktopRepository(private val store: DocumentStore) {
     val rootDir: File get() = store.rootDir
     val assetsDir: File get() = store.assetsDir
 
-    fun load(): Document = store.load()
+    fun load(): Document = store.load(year)
+
+    fun listYears(): List<String> = store.listYears()
 
     fun saveDocumentStructure(doc: Document) = schedule("doc") {
         store.writeDocumentStructure(doc)
     }
 
     fun savePage(page: Page) = schedule("page-${page.id}") {
-        store.writePage(page)
+        store.writePage(page, year)
     }
 
     fun deletePage(page: Page) {

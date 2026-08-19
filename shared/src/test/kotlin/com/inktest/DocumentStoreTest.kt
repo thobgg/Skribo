@@ -5,13 +5,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+private const val YEAR = "25-26"
+
 class DocumentStoreTest {
 
     private fun tempStore() = DocumentStore(Files.createTempDirectory("skribo-test").toFile())
 
     @Test
     fun `leeres verzeichnis liefert standarddokument`() {
-        val doc = tempStore().load()
+        val doc = tempStore().load(YEAR)
         assertTrue(doc.sections.isNotEmpty(), "Standarddokument braucht mindestens einen Abschnitt")
     }
 
@@ -30,10 +32,10 @@ class DocumentStoreTest {
         }
         page.addStroke(stroke)
 
-        store.writePage(page)
+        store.writePage(page, YEAR)
         store.writeDocumentStructure(doc)
 
-        val loadedPage = store.load().sections.first().pages.first { it.id == page.id }
+        val loadedPage = store.load(YEAR).sections.first().pages.first { it.id == page.id }
         assertEquals("Bruchrechnen", loadedPage.title)
         assertEquals(PaperStyle.GRID, loadedPage.paperStyle)
         assertEquals(1, loadedPage.strokes.size)
@@ -47,13 +49,13 @@ class DocumentStoreTest {
         val doc = Document.default()
         val section = doc.sections.first()
         val page = section.pages.first()
-        store.writePage(page)
+        store.writePage(page, YEAR)
         store.writeDocumentStructure(doc)
 
         store.deletePage(page)
         section.pages.remove(page)
         store.writeDocumentStructure(doc)
 
-        assertTrue(store.load().sections.first().pages.none { it.id == page.id })
+        assertTrue(store.load(YEAR).sections.first().pages.none { it.id == page.id })
     }
 }

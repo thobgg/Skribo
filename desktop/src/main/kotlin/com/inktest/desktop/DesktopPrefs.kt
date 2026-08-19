@@ -1,5 +1,6 @@
 package com.inktest.desktop
 
+import com.inktest.SchoolYear
 import com.inktest.SkriboLog
 import java.io.File
 import java.util.Properties
@@ -28,6 +29,11 @@ class DesktopPrefs(private val file: File) {
         get() = props.getProperty(KEY_PAGE)?.ifEmpty { null }
         set(v) = set(KEY_PAGE, v)
 
+    /** Schuljahr, dessen Annotationsebene gerade bearbeitet wird. */
+    var activeSchoolYear: String
+        get() = props.getProperty(KEY_YEAR)?.ifEmpty { null } ?: SchoolYear.current()
+        set(v) = set(KEY_YEAR, v)
+
     private fun set(key: String, value: String?) {
         if (value == null) props.remove(key) else props.setProperty(key, value)
         save()
@@ -44,5 +50,6 @@ class DesktopPrefs(private val file: File) {
         const val TAG = "DesktopPrefs"
         const val KEY_SECTION = "activeSectionId"
         const val KEY_PAGE = "activePageId"
+        const val KEY_YEAR = "activeSchoolYear"
     }
 }
