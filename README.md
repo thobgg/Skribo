@@ -1,104 +1,149 @@
 # Skribo
 
-**Handschrift-System für Unterrichtsplanung — OneNote-artig, mit bidirektionaler
-WebDAV-Sync zwischen Desktop-PC und CTOUCH-Boards.**
+**Unterrichtsplanung am Linux-Desktop, handschriftliches Arbeiten am
+CTOUCH-Board — mit einer Vorlage, die man jedes Schuljahr neu beschreiben kann.**
 
-Skribo unterstützt den Workflow von Lehrkräften: **Unterrichtsplanung am Desktop-PC**
-(ähnlich OneNote) und **Präsentieren/Annotieren am CTOUCH-Board** im Klassenraum —
-beide Seiten bleiben über **WebDAV bidirektional synchron**. Was am PC vorbereitet
-wird, liegt live auf dem Board; was im Unterricht am Board handschriftlich ergänzt
-wird, fließt zurück.
+![Skribo Desktop](docs/screenshot-desktop.png)
 
-## Komponenten (Monorepo)
+## Warum es das gibt
 
-Skribo besteht aus zwei Clients, die dasselbe offene On-Disk-Schema über WebDAV teilen:
+**OneNote gibt es nicht für Linux.** Der vollwertige Client ist Windows-only, im
+Browser bleibt eine abgespeckte Fassung. Wer seinen Unterricht am eigenen
+Linux-Rechner vorbereiten will, hat die Wahl zwischen Windows benutzen oder
+einem anderen Werkzeug. Skribo ist dieses andere Werkzeug.
 
-| Modul | Verzeichnis | Zweck | Status |
-|-------|-------------|-------|--------|
-| **Kern** (plattformfrei) | [`shared/`](./shared/) | Datenmodell, On-Disk-/WebDAV-Schema, Strich-Mathematik | ✅ |
-| **Board-Client** (Android) | [`android/`](./android/) | Ink-Oberfläche am CTOUCH-Board / Tablet | Prototyp — Latenz-PoC ✅ |
-| **Desktop-Client** (Planung) | [`desktop/`](./desktop/) | OneNote-artige Unterrichtsplanung am PC — Compose Multiplatform, Linux/Win 11/macOS | Grundgerüst läuft 🚧 |
+Dazu kommt ein Problem, das **OneNote in keiner Fassung löst**: die
+Wiederverwendung über Schuljahre. Dort kopiert man Notizbücher oder radiert die
+Tinte des Vorjahres weg. Skribo trennt beides sauber:
 
-Beide Clients teilen sich `shared/` — das Schema existiert dadurch nur an einer
-Stelle und kann zwischen Board und Desktop nicht auseinanderlaufen.
+- die **Basis** einer Seite — Titel, Format, das eingefügte Arbeitsblatt, Texte,
+  Bilder, Verweise — bleibt Jahr für Jahr unangetastet;
+- die **Handschrift** liegt in einer Ebene *je Schuljahr* darüber.
 
-> **Stand heute:** Der Android-Client ist ein **rudimentärer Prototyp**, entstanden
-> als Latenz-Test auf einem echten CTOUCH-Board. Der Test war **erfolgreich** (die
-> Stift-Latenz taugt für den Unterrichtseinsatz) — das ist der Startschuss, aus dem
-> Testbed „Inktest" das echte Produkt **Skribo** zu bauen.
+Ein Jahreswechsel gibt dir also dieselbe Vorlage mit einer sauberen Fläche, und
+das Vorjahr bleibt daneben zum Nachschlagen erhalten.
 
-> **Arbeitstitel „Inktest":** Der Repo-/Ordnername stammt vom eingebauten Tuning-/Metrics-Testbed,
-> mit dem Rendering-Performance und Stift-Latenz auf den Boards vermessen werden.
-> Produktname ist **Skribo**.
+## Für wen
 
-## Warum
+Für Lehrkräfte, die mit einem großen Touchdisplay im Klassenraum arbeiten, ihre
+Vorbereitung aber nicht in eine fremde Cloud legen wollen oder können — etwa
+weil die Datenschutzaufsicht dem Einsatz von MS 365 an Schulen Grenzen setzt.
+Skribo taugt als Rückfallebene, die man aufgebaut hat, *bevor* man sie braucht.
 
-Für die Kombination aus **Unterrichtsplanung am PC** und **handschriftlichem Arbeiten
-am CTOUCH-Board** gibt es keine nahtlose Lösung ohne Cloud-Zwang: OneNote bindet an
-Microsoft-Konten/Cloud, und die bidirektionale Synchronisation Desktop ↔ Board läuft
-nicht offen über selbst gehostetes WebDAV. Skribo setzt genau hier an — eigenes,
-offenes On-Disk-Schema, Sync über den eigenen WebDAV-Server, Board als
-gleichberechtigter Bearbeitungsort (nicht nur Anzeige).
+## Was es nicht ist
 
-## Features (Board-Client)
+Damit klar ist, worauf man sich einlässt:
 
-- **Ink-Engine** — druck-/geschwindigkeitsabhängige Striche, Motion-Prediction
-  (`MotionEventPredictor`) für geringe Latenz
-- **Glättungs-Algorithmen** wählbar: Bézier, Catmull-Rom, WMA
-- **Werkzeuge:** Stift, Textmarker, Linie, Text, Bild, Radierer
-- **Papierstile:** Blank, Lineiert, Kariert, Punkte, Legal (gelb)
-- **Struktur:** Abschnitte → Seiten → Unterseiten
-- **Bidirektionale WebDAV-Sync** (`SkriboSync`) Desktop ↔ Board auf ein offenes
-  Skribo-On-Disk-Schema (kein Cloud-Zwang, selbst hostbar)
-- **Tuning-/Metrics-Panel** — Layer-Typ, Bitmap-Config, Antialiasing, Clipping,
-  Damage-Rect-Invalidation u.v.m. live umschaltbar zum Latenz-Benchmarking
+- **Kein Ersatz für die Schülerseite.** Wie Material zu den Schülern kommt,
+  bleibt der Schule überlassen (Teams, Moodle, IServ …). Skribos Brücke dorthin
+  ist der **PDF-Export** — importierte Arbeitsblätter kommen unverändert wieder
+  heraus, zum Verteilen und Ausdrucken.
+- **Kein fertiges Produkt.** Es entsteht für den eigenen Bedarf. Vieles fehlt,
+  vieles ist rau. Siehe [Stand](#stand).
+- **Keine Einsicht der Schüler ins Tafelbild.** Bewusst weggelassen — es hat sich
+  im Unterricht als kontraproduktiv erwiesen, weil es aufmerksames Mitschreiben
+  untergräbt.
 
-## Tech-Stack
+## Aufbau
 
-| Komponente     | Technologie |
-|----------------|-------------|
-| Sprache / UI   | Kotlin, Android Views (kein Compose), landscape / tablet-first |
-| Ink-Prediction | `androidx.input:input-motionprediction` |
-| Sync           | WebDAV über OkHttp |
-| Min / Target   | `minSdk 24`, `targetSdk 36`, `compileSdk 36` |
+Skribo besteht aus zwei Programmen und einem gemeinsamen Kern:
 
-## Build (Board-Client)
+| Modul | Verzeichnis | Zweck |
+|-------|-------------|-------|
+| **Kern** (plattformfrei) | [`shared/`](./shared/) | Datenmodell, On-Disk- und WebDAV-Schema, Strich-Mathematik |
+| **Desktop-Client** | [`desktop/`](./desktop/) | Planung am PC (Compose Multiplatform: Linux, Windows, macOS) |
+| **Board-Client** | [`android/`](./android/) | Handschrift am CTOUCH-Board oder Android-Tablet |
 
-```bash
-./gradlew :android:assembleDebug   # APK bauen
-./gradlew :android:installDebug    # auf angeschlossenem Board/Gerät/Emulator installieren
-./gradlew :shared:test             # Kern testen (ohne Gerät/Emulator)
+Beide Clients benutzen denselben Kern — das Schema existiert nur an einer Stelle
+und kann zwischen Board und PC nicht auseinanderlaufen. Die Strich-Glättung ist
+dieselbe, deshalb sieht ein am Board geschriebener Zug am PC exakt gleich aus.
+
+## Desktop-Client
+
+![Seite mit eingefügtem Arbeitsblatt](docs/screenshot-pdf.png)
+
+- **PDF einfügen** — jede Seite wird eine eigene Skribo-Seite mit der gerenderten
+  Vorlage im Hintergrund; A4 und Präsentationsfolien werden am Seitenverhältnis
+  erkannt. Das **Original wird mitgespeichert** und lässt sich jederzeit wieder
+  herausgeben.
+- **Auf der Seite schreiben** — Klick ins Leere legt ein Textfeld an, getippt wird
+  direkt an Ort und Stelle, mehrzeilig.
+- **Anordnen** — auswählen, verschieben, Bilder an der Ecke skalieren;
+  Rückgängig/Wiederholen für alles.
+- **Bilder und Video-Verweise** — jpg/png werden ins Dokument übernommen,
+  YouTube-Links bleiben Verweise (nichts wird heruntergeladen).
+- **Struktur** — Abschnitte, Seiten, Unterseiten; Rechtsklick zum Umbenennen,
+  Löschen und Anlegen.
+- **Ansicht** — scrollen, mit `Strg`+Mausrad zoomen; auch neben dem Blatt ist
+  Platz für Notizen am Rand.
+- **Schuljahr umschalten** — tauscht nur die Handschrift-Ebene.
+
+## Board-Client
+
+- Ink-Engine mit wählbarer Glättung (Bézier, Catmull-Rom, WMA) und
+  Motion-Prediction für geringe Latenz
+- Werkzeuge: Stift, Textmarker, Linie, Text, Bild, Radierer
+- Papierstile: blanko, liniert, kariert, Punkte, gelb liniert
+- Zeigt die am PC vorbereiteten Seiten formatgerecht mit ihrer Vorlage
+- Tuning-/Metrics-Panel zum Vermessen der Zeichenleistung auf dem jeweiligen Board
+
+## Daten und Synchronisierung
+
+Alles liegt als lesbares JSON auf der Platte — kein Datenbankformat, kein
+Bindungszwang:
+
+```
+document.json                        Abschnitte und Reihenfolge der Seiten
+pages/<id>.json                      die stabile Basis einer Seite
+annotations/<schuljahr>/<id>.json    die Handschrift dieses Schuljahrs
+assets/                              Vorlagen, Bilder, Original-PDFs
 ```
 
-## Build (Desktop-Client)
+Auf dem Desktop unter `~/.local/share/skribo` (Linux), `%APPDATA%\skribo`
+(Windows) bzw. `~/Library/Application Support/skribo` (macOS). Ein anderer Ort
+lässt sich über die Umgebungsvariable `SKRIBO_HOME` wählen.
+
+Die Synchronisierung läuft über einen **selbst betriebenen WebDAV-Server** (etwa
+das WebDAV-Paket einer Synology). Adresse, Benutzer und Passwort trägt man im
+Programm ein — sie landen in `desktop.properties` neben dem Dokument, **nicht im
+Repository**. Ein Abschnitt wird nur synchronisiert, wenn man ihm per Rechtsklick
+einen WebDAV-Pfad gibt; ohne Pfad bleibt er lokal.
+
+## Bauen und starten
+
+Voraussetzung ist ein JDK 17 oder neuer; für den Board-Client zusätzlich das
+Android SDK (Pfad in `local.properties`, nicht eingecheckt).
 
 ```bash
-./gradlew :desktop:run             # direkt starten
+./gradlew :desktop:run             # Desktop-Client starten
 ./gradlew :desktop:packageDeb      # Linux-Paket (analog packageMsi / packageDmg)
+
+./gradlew :android:assembleDebug   # APK bauen
+./gradlew :android:installDebug    # auf angeschlossenes Board/Tablet installieren
+
+./gradlew build                    # alles bauen und testen
 ```
 
-> Das lokale Dokument liegt plattformgerecht unter `~/.local/share/skribo`
-> (Linux), `%APPDATA%\skribo` (Windows) bzw.
-> `~/Library/Application Support/skribo` (macOS).
+## Stand
 
-> Voraussetzung: Android SDK. Lokale Pfade (`sdk.dir`, JDK) stehen in
-> `local.properties` — diese Datei ist bewusst **nicht** eingecheckt.
+In Entwicklung, im täglichen Gebrauch noch nicht erprobt.
 
-## Distribution
+**Da:** Planung am Desktop (Struktur, PDF-Import, Text, Bilder, Verweise,
+Anordnen, Zoomen), Schuljahr-Ebenen in beiden Clients, Anzeige der Vorlagen am
+Board, Push auf den WebDAV-Server.
 
-Interner Einsatz an der eigenen Schule — Verteilung der APK direkt auf die
-CTOUCH-Boards (kein App-Store).
+**Fehlt:** das Zurückholen vom Server (Pull), damit der Kreislauf sich schließt;
+Textformatierung; Seiten zwischen Abschnitten verschieben; Suche.
 
-## Mockups
+Vollständiger Projektkontext, Entscheidungen und Milestones stehen in
+[`PROJECT.md`](./PROJECT.md) — inklusive der Begründungen, die sich unterwegs als
+falsch herausgestellt haben.
 
-Design-Explorationen (GoodNotes-/OneNote-Stil, Skribo-Branding, Datenformat)
-liegen als HTML unter [`mockups/`](./mockups/).
+## Mitmachen
 
-## Status
-
-🚧 In Entwicklung. Roadmap, Milestones und voller Projektkontext siehe
-[`PROJECT.md`](./PROJECT.md).
+Wenn du in derselben Lage bist: Fehlerberichte und Verbesserungen sind
+willkommen. Das Projekt entsteht neben dem Schulalltag, Antworten können dauern.
 
 ## Lizenz
 
-[GNU General Public License v3.0](./LICENSE) (GPLv3).
+[GNU General Public License v3.0](./LICENSE)

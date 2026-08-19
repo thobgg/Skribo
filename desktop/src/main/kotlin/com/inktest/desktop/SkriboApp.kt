@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.inktest.ImageBox
 import com.inktest.LinkBox
@@ -551,43 +554,72 @@ private fun PageToolbar(
     onWebdavSettings: () -> Unit,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
+    var moreOpen by remember { mutableStateOf(false) }
 
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Column {
+        // Begrenzt und einzeilig: ein langer Seitentitel darf die Leiste nicht
+        // auf zwei Zeilen drücken und damit die Seitenfläche verkleinern.
+        Column(Modifier.widthIn(max = 280.dp)) {
             Text(
                 page?.title ?: "Keine Seite",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             page?.let {
                 Text(
                     formatLabel(it),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
         Spacer(Modifier.weight(1f))
 
-        TextButton(onClick = onImportPdf) { Text("PDF …") }
-        TextButton(onClick = onImportImage, enabled = page != null) { Text("Bild …") }
-        TextButton(onClick = onAddLink, enabled = page != null) { Text("Video-Link …") }
-        // Nur bei Seiten, die aus einem PDF stammen — sonst gibt es nichts herauszugeben.
-        if (page?.background?.sourceAssetPath != null) {
-            TextButton(onClick = onExportOriginal) { Text("Original …") }
+        // Häufig Gebrauchtes bleibt sichtbar, der Rest wandert ins Menü —
+        // sonst drängeln sich die Knöpfe und ihre Beschriftungen brechen um.
+        TextButton(onClick = onImportPdf) { Text("PDF …", maxLines = 1) }
+        TextButton(onClick = onImportImage, enabled = page != null) { Text("Bild …", maxLines = 1) }
+        TextButton(onClick = onSync) { Text("Sync", maxLines = 1) }
+
+        Spacer(Modifier.width(8.dp))
+        TextButton(onClick = onUndo, enabled = page?.canUndo() == true) {
+            Text("Rückgängig", maxLines = 1)
+        }
+        TextButton(onClick = onRedo, enabled = page?.canRedo() == true) {
+            Text("Wiederholen", maxLines = 1)
         }
 
-        Spacer(Modifier.width(12.dp))
-        TextButton(onClick = onSync) { Text("Sync") }
-        TextButton(onClick = onWebdavSettings) { Text("Server …") }
-
-        Spacer(Modifier.width(12.dp))
-        TextButton(onClick = onUndo, enabled = page?.canUndo() == true) { Text("Rückgängig") }
-        TextButton(onClick = onRedo, enabled = page?.canRedo() == true) { Text("Wiederholen") }
+        Box {
+            TextButton(onClick = { moreOpen = true }) { Text("⋯", maxLines = 1) }
+            DropdownMenu(moreOpen, onDismissRequest = { moreOpen = false }) {
+                DropdownMenuItem(
+                    text = { Text("Video-Link einfügen …") },
+                    enabled = page != null,
+                    onClick = { onAddLink(); moreOpen = false },
+                )
+                // Nur bei Seiten aus einem PDF — sonst gibt es nichts herauszugeben.
+                if (page?.background?.sourceAssetPath != null) {
+                    DropdownMenuItem(
+                        text = { Text("Original-PDF speichern …") },
+                        onClick = { onExportOriginal(); moreOpen = false },
+                    )
+                }
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text("WebDAV-Server …") },
+                    onClick = { onWebdavSettings(); moreOpen = false },
+                )
+            }
+        }
 
         Box {
             // Auf einer gerenderten Vorlage wäre ein Papierraster sinnlos.
@@ -595,7 +627,7 @@ private fun PageToolbar(
                 onClick = { paperMenuOpen = true },
                 enabled = page != null && page.background == null,
             ) {
-                Text("Papier: ${page?.paperStyle?.let(::paperLabel) ?: "—"}")
+                Text("Papier: ${page?.paperStyle?.let(::paperLabel) ?: "—"}", maxLines = 1)
             }
             DropdownMenu(paperMenuOpen, onDismissRequest = { paperMenuOpen = false }) {
                 PaperStyle.entries.forEach { style ->
