@@ -362,6 +362,26 @@ class DocumentController(
         return sync(webdavServer, webdavUsername, webdavPassword).pushDocument(document)
     }
 
+    /**
+     * Holt die Serverfassung und mischt sie ein. Jede berührte Seite wird
+     * gespeichert, sonst stünde das Geholte nur im Arbeitsspeicher.
+     */
+    fun pull(): SkriboSync.PullResult {
+        repository.flush()
+        val result = sync(webdavServer, webdavUsername, webdavPassword)
+            .pullDocument(document) { page -> repository.savePage(page) }
+        repository.saveDocumentStructure(document)
+        repository.flush()
+        // Die Auswahl kann auf eine Seite zeigen, die es so nicht mehr gibt.
+        activeSection = document.sections.firstOrNull { it.id == activeSection?.id }
+            ?: document.sections.firstOrNull()
+        activePage = activeSection?.let { s ->
+            s.pages.firstOrNull { it.id == activePage?.id } ?: s.pages.firstOrNull()
+        }
+        revision++
+        return result
+    }
+
     /** Wo importierte Bilder und gerenderte PDF-Seiten liegen. */
     val assetsDir: java.io.File get() = repository.assetsDir
     val rootDir: java.io.File get() = repository.rootDir

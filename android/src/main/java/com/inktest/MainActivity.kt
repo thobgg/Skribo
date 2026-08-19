@@ -849,6 +849,10 @@ class MainActivity : AppCompatActivity() {
             appMenuPanel.visibility = View.GONE
             triggerSync()
         }
+        findViewById<TextView>(R.id.menuSyncPull).setOnClickListener {
+            appMenuPanel.visibility = View.GONE
+            triggerPull()
+        }
         findViewById<TextView>(R.id.menuSyncSettings).setOnClickListener {
             appMenuPanel.visibility = View.GONE
             showWebdavSettingsDialog()
@@ -1042,6 +1046,45 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Schuljahr: $year", Toast.LENGTH_SHORT).show()
     }
 
+    /**
+     * Holt die am PC vorbereiteten Seiten vom Server. Am Board ist das der
+     * wichtigere der beiden Wege — ohne ihn käme vorbereitetes Material nie an.
+     */
+    private fun triggerPull() {
+        if (prefs.webdavServer.isBlank() || prefs.webdavUsername.isBlank()) {
+            Toast.makeText(this, "Erst WebDAV-Einstellungen ausfüllen", Toast.LENGTH_LONG).show()
+            return
+        }
+        currentPage?.let { repository.savePage(it) }
+        repository.flush()
+        Toast.makeText(this, "Wird geholt …", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                val sync = SkriboSync(prefs::syncConfig, repository.rootDir)
+                val result = sync.pullDocument(document) { page -> repository.savePage(page) }
+                repository.saveDocumentStructure(document)
+                repository.flush()
+                runOnUiThread {
+                    currentSection = null
+                    currentPage = null
+                    activateInitial()
+                    val msg = buildString {
+                        append("${result.added} neu, ${result.updated} aktualisiert")
+                        if (result.errors.isNotEmpty()) {
+                            append(" · ${result.errors.size} Fehler:\n")
+                            append(result.errors.take(3).joinToString("\n"))
+                        }
+                    }
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                runOnUiThread {
+                    Toast.makeText(this, "Holen fehlgeschlagen: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }.start()
+    }
+
     private fun triggerSync() {
         if (prefs.webdavServer.isBlank() || prefs.webdavUsername.isBlank()) {
             Toast.makeText(this, "Erst WebDAV-Einstellungen ausfüllen", Toast.LENGTH_LONG).show()
@@ -1051,7 +1094,7 @@ class MainActivity : AppCompatActivity() {
         Toast.makeText(this, "Sync läuft …", Toast.LENGTH_SHORT).show()
         Thread {
             try {
-                val result = SkriboSync(prefs::syncConfig).pushDocument(document)
+                val result = SkriboSync(prefs::syncConfig, repository.rootDir).pushDocument(document)
                 prefs.lastSyncTime = System.currentTimeMillis()
                 runOnUiThread {
                     val msg = buildString {

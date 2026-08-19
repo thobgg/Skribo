@@ -140,7 +140,7 @@ class SkriboSync(
         ensureDirectory(server, auth, "$basePath/annotations")
         pushAssets(server, auth, basePath, page)
         putJson(server, auth, "$basePath/base.json", pageToBaseJson(page))
-        putJson(server, auth, "$basePath/annotations/$year.json", pageToAnnotationsJson(page, year))
+        putJson(server, auth, "$basePath/annotations/$year.json", page.toAnnotationsJson(year))
     }
 
     /** Alle Dateien, auf die eine Seite verweist — relativ zur Dokumentwurzel. */
@@ -204,99 +204,184 @@ class SkriboSync(
         }
     }
 
-    private fun pageToBaseJson(page: Page): JSONObject = JSONObject().apply {
+    /**
+     * Die Seitenbasis fürs Netz — **dieselbe Darstellung wie lokal**, nur um
+     * Typ und Schemaversion ergänzt. Zwei verschiedene Darstellungen zu pflegen
+     * hieße, für den Pull einen zweiten Übersetzer zu bauen und jede
+     * Schemaänderung doppelt nachzuziehen.
+     */
+    private fun pageToBaseJson(page: Page): JSONObject = page.toBaseJson().apply {
         put("schemaVersion", SCHEMA_VERSION)
         put("type", "skribo-base")
-        put("id", page.id)
-        put("title", page.title)
-        // Format und Hintergrund gehören zur stabilen Basis — die Handschrift
-        // darüber steckt in annotations/<schuljahr>.json.
-        put("format", page.format.name.lowercase())
-        if (page.format.isBounded) {
-            put("size", JSONObject().apply {
-                put("widthPt", page.format.widthPt.toDouble())
-                put("heightPt", page.format.heightPt.toDouble())
-            })
-        }
-        page.background?.let { bg ->
-            put("background", JSONObject().apply {
-                put("src", bg.assetPath)
-                bg.sourceName?.let { put("sourceName", it) }
-                bg.sourcePage?.let { put("sourcePage", it) }
-                // Das Original wandert mit — es ist der Handzettel für die Schüler.
-                bg.sourceAssetPath?.let { put("sourceFile", it) }
-            })
-        }
-        put("paper", JSONObject().apply {
-            put("type", page.paperStyle.name.lowercase())
-        })
-        put("strokes", JSONArray())
-        val texts = JSONArray()
-        page.textBoxes.forEach { tb ->
-            texts.put(JSONObject().apply {
-                put("id", tb.id)
-                put("x", tb.x.toDouble())
-                put("y", tb.y.toDouble())
-                put("content", tb.content)
-                put("fontSize", tb.fontSize.toDouble())
-                put("color", String.format("#%06X", tb.color and 0xFFFFFF))
-            })
-        }
-        put("texts", texts)
-        val images = JSONArray()
-        page.imageBoxes.forEach { ib ->
-            images.put(JSONObject().apply {
-                put("id", ib.id)
-                put("x", ib.x.toDouble())
-                put("y", ib.y.toDouble())
-                put("width", ib.width.toDouble())
-                put("height", ib.height.toDouble())
-                put("src", ib.assetPath)
-                // sha256 wird in Phase 3b ergänzt (Asset-Versionierung)
-            })
-        }
-        put("images", images)
-        val links = JSONArray()
-        page.linkBoxes.forEach { lb ->
-            links.put(JSONObject().apply {
-                put("id", lb.id)
-                put("x", lb.x.toDouble())
-                put("y", lb.y.toDouble())
-                put("url", lb.url)
-                put("title", lb.title)
-                lb.youtubeId()?.let { put("youtubeId", it) }
-            })
-        }
-        put("links", links)
     }
 
-    private fun pageToAnnotationsJson(page: Page, year: String): JSONObject = JSONObject().apply {
-        put("schemaVersion", SCHEMA_VERSION)
-        put("type", "skribo-annotations")
-        put("schoolYear", year)
-        val strokes = JSONArray()
-        page.strokes.forEachIndexed { idx, stroke ->
-            strokes.put(strokeToSkriboJson(stroke, idx))
+    // ---------------- Herunterladen ----------------
+
+    /**
+     * Holt die Abschnitte mit WebDAV-Pfad vom Server und mischt sie ins lokale
+     * Dokument. Die Zuordnung läuft über die **Seiten-Kennung** aus `base.json`,
+     * nicht über den Ordnernamen — sonst würde eine umbenannte Seite als neue
+     * gelten.
+     *
+     * Zusammenführung nach Ebenen: Die *Basis* kommt vom Server (dort steht die
+     * am PC gepflegte Vorlage), die *Annotationen* ersetzen die lokalen des
+     * gewählten Schuljahrs. Weil Basis und Handschrift getrennte Dateien sind,
+     * können sie gar nicht erst kollidieren.
+     *
+     * Lokal vorhandene Seiten, die der Server nicht kennt, bleiben unangetastet —
+     * ohne Löschmerkmal ließe sich „gelöscht" nicht von „neu hier" unterscheiden.
+     */
+    @Throws(IOException::class)
+    fun pullDocument(doc: Document, onPage: (Page) -> Unit = {}): PullResult {
+        val cfg = settings()
+        val server = cfg.server.trimEnd('/')
+        if (server.isEmpty()) throw IOException("Server-URL nicht gesetzt")
+        if (cfg.username.isEmpty()) throw IOException("Benutzername nicht gesetzt")
+        val auth = Credentials.basic(cfg.username, cfg.password)
+        val year = cfg.schoolYear
+
+        var added = 0
+        var updated = 0
+        val errors = mutableListOf<String>()
+
+        for (section in doc.sections) {
+            val sectionPath = section.webdavPath?.trim('/')
+            if (sectionPath.isNullOrEmpty()) continue
+            val pageDirs = runCatching { listDirectories(server, auth, sectionPath) }
+                .getOrElse {
+                    errors += "${section.name}: ${it.message}"
+                    continue
+                }
+            for (dir in pageDirs) {
+                val topic = "$sectionPath/$dir/skribo"
+                fetchPage(server, auth, topic, year, section, null, errors)?.let { (page, isNew) ->
+                    if (isNew) added++ else updated++
+                    onPage(page)
+                    // Unterseiten liegen als weitere Ordner neben annotations/ und assets/.
+                    listDirectories(server, auth, topic)
+                        .filter { it != "annotations" && it != "assets" }
+                        .forEach { sub ->
+                            fetchPage(server, auth, "$topic/$sub", year, section, page, errors)
+                                ?.let { (subPage, subIsNew) ->
+                                    if (subIsNew) added++ else updated++
+                                    onPage(subPage)
+                                }
+                        }
+                }
+            }
         }
-        put("strokes", strokes)
-        put("texts", JSONArray())
-        put("images", JSONArray())
+        return PullResult(added, updated, errors)
     }
 
-    private fun strokeToSkriboJson(stroke: Stroke, index: Int): JSONObject {
-        val pts = JSONArray()
-        for (i in 0 until stroke.size) {
-            val pt = JSONArray()
-            pt.put(stroke.x(i).toDouble())
-            pt.put(stroke.y(i).toDouble())
-            pts.put(pt)
+    /**
+     * Lädt eine Seite und mischt sie ein. Gibt die Seite zurück und ob sie neu
+     * angelegt wurde; `null`, wenn dort keine Seite liegt.
+     */
+    private fun fetchPage(
+        server: String,
+        auth: String,
+        basePath: String,
+        year: String,
+        section: Section,
+        parent: Page?,
+        errors: MutableList<String>,
+    ): Pair<Page, Boolean>? {
+        val baseJson = runCatching { getJson(server, auth, "$basePath/base.json") }
+            .getOrElse {
+                errors += "$basePath: ${it.message}"
+                return null
+            } ?: return null
+
+        val remote = runCatching { Page.fromJson(baseJson) }.getOrElse {
+            errors += "$basePath/base.json unlesbar: ${it.message}"
+            return null
         }
-        return JSONObject().apply {
-            put("id", "s$index")
-            put("tool", "pen")
-            put("color", String.format("#%06X", stroke.color and 0xFFFFFF))
-            put("width", stroke.width.toDouble())
-            put("points", pts)
+        getJson(server, auth, "$basePath/annotations/$year.json")?.let { annotations ->
+            runCatching { remote.applyAnnotations(annotations) }
+        }
+        downloadAssets(server, auth, basePath, remote, errors)
+
+        val existing = section.pages.firstOrNull { it.id == remote.id }
+        return if (existing == null) {
+            remote.parentId = parent?.id
+            if (parent != null) section.addSubpageOf(parent, remote) else section.addRootPage(remote)
+            remote to true
+        } else {
+            merge(into = existing, from = remote)
+            existing to false
+        }
+    }
+
+    /** Übernimmt Basis und Handschrift der Serverfassung in die lokale Seite. */
+    private fun merge(into: Page, from: Page) {
+        into.title = from.title
+        into.paperStyle = from.paperStyle
+        into.format = from.format
+        into.background = from.background
+        into.textBoxes.clear(); into.textBoxes.addAll(from.textBoxes)
+        into.imageBoxes.clear(); into.imageBoxes.addAll(from.imageBoxes)
+        into.linkBoxes.clear(); into.linkBoxes.addAll(from.linkBoxes)
+        into.strokes.clear(); into.strokes.addAll(from.strokes)
+        // Die Historie gehörte zum vorherigen Inhalt und passt nicht mehr.
+        into.clearHistory()
+    }
+
+    /** Holt fehlende Vorlagen, Bilder und Original-PDFs in die lokale Ablage. */
+    private fun downloadAssets(
+        server: String,
+        auth: String,
+        basePath: String,
+        page: Page,
+        errors: MutableList<String>,
+    ) {
+        val root = assetRoot ?: return
+        assetsOf(page).forEach { rel ->
+            val target = java.io.File(root, rel)
+            if (target.exists()) return@forEach
+            val remote = "$basePath/assets/${rel.substringAfterLast('/')}"
+            runCatching {
+                getBytes(server, auth, remote)?.let { bytes ->
+                    target.parentFile?.mkdirs()
+                    target.writeBytes(bytes)
+                }
+            }.onFailure { errors += "Asset $rel: ${it.message}" }
+        }
+    }
+
+    /** Ordnernamen direkt unterhalb von [path]. */
+    private fun listDirectories(server: String, auth: String, path: String): List<String> {
+        val req = Request.Builder()
+            .url("$server/${urlEncodePath(path)}/")
+            .header("Authorization", auth)
+            .header("Depth", "1")
+            .method("PROPFIND", null)
+            .build()
+        val body = client.newCall(req).execute().use { resp ->
+            when (resp.code) {
+                200, 207 -> resp.body?.string().orEmpty()
+                404 -> return emptyList()
+                401 -> throw IOException("Authentifizierung fehlgeschlagen (401)")
+                else -> throw IOException("PROPFIND $path → HTTP ${resp.code}")
+            }
+        }
+        return parseDirectoryNames(body, path)
+    }
+
+    private fun getJson(server: String, auth: String, path: String): JSONObject? =
+        getBytes(server, auth, path)?.let { JSONObject(String(it, Charsets.UTF_8)) }
+
+    private fun getBytes(server: String, auth: String, path: String): ByteArray? {
+        val req = Request.Builder()
+            .url("$server/${urlEncodePath(path)}")
+            .header("Authorization", auth)
+            .get()
+            .build()
+        return client.newCall(req).execute().use { resp ->
+            when {
+                resp.isSuccessful -> resp.body?.bytes()
+                resp.code == 404 -> null
+                else -> throw IOException("GET $path → HTTP ${resp.code}")
+            }
         }
     }
 
@@ -342,6 +427,8 @@ class SkriboSync(
 
     data class SyncResult(val pageCount: Int, val errors: List<String>)
 
+    data class PullResult(val added: Int, val updated: Int, val errors: List<String>)
+
     companion object {
         private const val TAG = "SkriboSync"
 
@@ -351,5 +438,32 @@ class SkriboSync(
          * Felder bedeuten „freier Canvas, kein Hintergrund".
          */
         const val SCHEMA_VERSION = 2
+
+        /**
+         * Liest die Ordnernamen aus einer PROPFIND-Antwort. Bewusst über einen
+         * Ausdruck statt über einen XML-Parser: Die Antwort ist maschinell
+         * erzeugt und flach, und der Kern soll ohne XML-Bibliothek auskommen.
+         *
+         * [parentPath] ist der abgefragte Pfad; sein eigener Eintrag und alle
+         * Nicht-Ordner werden übersprungen.
+         */
+        fun parseDirectoryNames(xml: String, parentPath: String): List<String> {
+            val parent = parentPath.trim('/')
+            val hrefs = Regex("""<[^>]*href[^>]*>([^<]*)</[^>]*href>""", RegexOption.IGNORE_CASE)
+                .findAll(xml).map { it.groupValues[1].trim() }
+            return hrefs.mapNotNull { raw ->
+                // Nur Ordner: WebDAV hängt ihnen einen Schrägstrich an.
+                if (!raw.endsWith("/")) return@mapNotNull null
+                val decoded = runCatching {
+                    java.net.URLDecoder.decode(raw, "UTF-8")
+                }.getOrDefault(raw).trim('/')
+                val idx = decoded.indexOf(parent)
+                if (parent.isNotEmpty() && idx < 0) return@mapNotNull null
+                val rest = if (parent.isEmpty()) decoded
+                else decoded.substring(idx + parent.length).trim('/')
+                // Genau eine Ebene tiefer; der Ordner selbst ergibt "".
+                rest.takeIf { it.isNotEmpty() && !it.contains('/') }
+            }.distinct().toList()
+        }
     }
 }

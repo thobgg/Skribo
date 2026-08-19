@@ -125,6 +125,32 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         }
     }
 
+    /** Holt die Serverfassung; läuft im Hintergrund. */
+    fun pull() {
+        if (!controller.webdavConfigured) {
+            dialog = AppDialog.WebdavSettings
+            return
+        }
+        busy = "Wird vom Server geholt …"
+        scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching { controller.pull() } }
+            busy = null
+            result
+                .onSuccess { r ->
+                    dialog = AppDialog.Message(
+                        buildString {
+                            append("${r.added} Seite(n) neu, ${r.updated} aktualisiert.")
+                            if (r.errors.isNotEmpty()) {
+                                append("\n\n${r.errors.size} Fehler:\n")
+                                append(r.errors.take(5).joinToString("\n"))
+                            }
+                        }
+                    )
+                }
+                .onFailure { dialog = AppDialog.Message("Holen fehlgeschlagen:\n${it.message}") }
+        }
+    }
+
     /** Gibt das beim Import mitgespeicherte Original wieder heraus. */
     fun exportOriginal() {
         val bg = controller.activePage?.background ?: return
@@ -203,6 +229,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         onAddLink = { dialog = AppDialog.NewLink },
                         onExportOriginal = ::exportOriginal,
                         onSync = ::push,
+                        onPull = ::pull,
                         onWebdavSettings = { webdavTest = null; dialog = AppDialog.WebdavSettings },
                     )
                     HorizontalDivider()
@@ -551,6 +578,7 @@ private fun PageToolbar(
     onAddLink: () -> Unit,
     onExportOriginal: () -> Unit,
     onSync: () -> Unit,
+    onPull: () -> Unit,
     onWebdavSettings: () -> Unit,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
@@ -588,7 +616,8 @@ private fun PageToolbar(
         // sonst drängeln sich die Knöpfe und ihre Beschriftungen brechen um.
         TextButton(onClick = onImportPdf) { Text("PDF …", maxLines = 1) }
         TextButton(onClick = onImportImage, enabled = page != null) { Text("Bild …", maxLines = 1) }
-        TextButton(onClick = onSync) { Text("Sync", maxLines = 1) }
+        TextButton(onClick = onSync) { Text("Senden", maxLines = 1) }
+        TextButton(onClick = onPull) { Text("Holen", maxLines = 1) }
 
         Spacer(Modifier.width(8.dp))
         TextButton(onClick = onUndo, enabled = page?.canUndo() == true) {

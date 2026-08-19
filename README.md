@@ -109,6 +109,19 @@ Programm ein — sie landen in `desktop.properties` neben dem Dokument, **nicht 
 Repository**. Ein Abschnitt wird nur synchronisiert, wenn man ihm per Rechtsklick
 einen WebDAV-Pfad gibt; ohne Pfad bleibt er lokal.
 
+Auf dem Server liegt dieselbe Aufteilung wieder:
+
+```
+<pfad>/<seite>/skribo/base.json                    die Vorlage
+<pfad>/<seite>/skribo/annotations/<schuljahr>.json die Handschrift
+<pfad>/<seite>/skribo/assets/                      Vorlagenbilder, Original-PDFs
+<pfad>/<seite>/skribo/<unterseite>/…               Unterseiten
+```
+
+Weil Vorlage und Handschrift getrennte Dateien sind, können sie beim Abgleich
+gar nicht erst kollidieren: Die Vorlage kommt vom Planungsrechner, die
+Handschrift vom Board.
+
 ## Bauen und starten
 
 Voraussetzung ist ein JDK 17 oder neuer; für den Board-Client zusätzlich das
@@ -130,10 +143,12 @@ In Entwicklung, im täglichen Gebrauch noch nicht erprobt.
 
 **Da:** Planung am Desktop (Struktur, PDF-Import, Text, Bilder, Verweise,
 Anordnen, Zoomen), Schuljahr-Ebenen in beiden Clients, Anzeige der Vorlagen am
-Board, Push auf den WebDAV-Server.
+Board, und die Synchronisierung in beide Richtungen — Senden und Holen,
+einschließlich der Assets.
 
-**Fehlt:** das Zurückholen vom Server (Pull), damit der Kreislauf sich schließt;
-Textformatierung; Seiten zwischen Abschnitten verschieben; Suche.
+**Fehlt:** Textformatierung; Seiten zwischen Abschnitten verschieben; Suche;
+Löschungen werden nicht übertragen (eine lokal gelöschte Seite kommt beim
+nächsten Holen zurück).
 
 Vollständiger Projektkontext, Entscheidungen und Milestones stehen in
 [`PROJECT.md`](./PROJECT.md) — inklusive der Begründungen, die sich unterwegs als

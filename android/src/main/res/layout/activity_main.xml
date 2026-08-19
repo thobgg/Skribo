@@ -351,9 +351,14 @@
                 android:text="Sync" />
 
             <TextView
+                android:id="@+id/menuSyncPull"
+                style="@style/MenuItem"
+                android:text="Vom Server holen" />
+
+            <TextView
                 android:id="@+id/menuSyncNow"
                 style="@style/MenuItem"
-                android:text="Jetzt synchronisieren" />
+                android:text="Zum Server senden" />
 
             <TextView
                 android:id="@+id/menuSyncSettings"
