@@ -37,6 +37,15 @@ Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
   das Format, das beide Wege lesen.
 - **Keine Latenz-Rettung.** OneNote schreibt am Board gut; der M0-Test belegte
   nur, dass ein eigener Client schnell genug *sein kann*.
+- **Keine laufende Einsicht ins Tafelbild von zuhause.** Im Kursnotizbuch
+  konnten Schüler jederzeit nachsehen, was in der Stunde entstand. Das ist
+  **bewusst kein Ziel**: Es erwies sich als kontraproduktiv, weil es
+  aufmerksames Mitarbeiten und Mitschreiben untergrub. Nicht später
+  „nachrüsten" — das Weglassen ist die Entscheidung.
+- **Keine digitalen Schülerhefte mit Einsicht der Lehrkraft.** OneNote konnte
+  das (Schüler schreiben, scannen, fotografieren hinein; Lehrkraft schaut
+  überall rein), es wurde in der Praxis aber kaum genutzt. Der Aufwand stünde
+  in keinem Verhältnis.
 
 **Gewählter Ansatz:** Zwei selbst gebaute Clients (Board + Desktop), die ein
 **offenes On-Disk-Schema** über einen **eigenen WebDAV-Server** teilen. Das Board
