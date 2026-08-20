@@ -361,6 +361,7 @@ class SkriboSync(
                 200, 207 -> resp.body?.string().orEmpty()
                 404 -> return emptyList()
                 401 -> throw IOException("Authentifizierung fehlgeschlagen (401)")
+                405 -> throw IOException(explain405(path))
                 else -> throw IOException("PROPFIND $path → HTTP ${resp.code}")
             }
         }
@@ -388,6 +389,7 @@ class SkriboSync(
     private fun ensureDirectory(server: String, auth: String, path: String) {
         val parts = path.split('/').filter { it.isNotEmpty() }
         var current = ""
+        var topLevelRefused = false
         for (part in parts) {
             current = if (current.isEmpty()) part else "$current/$part"
             val url = "$server/${urlEncodePath(current)}/"
@@ -400,10 +402,22 @@ class SkriboSync(
                 if (resp.code == 401) {
                     throw IOException("Authentifizierung fehlgeschlagen (401)")
                 }
-                // 201 Created: ok; 405 Method Not Allowed (already exists): ok; others ignored
+                // 201 = angelegt, 405 = gibt es schon — beides in Ordnung.
+                // 405 kann aber auch heißen: hier *darf* nicht angelegt werden.
+                // Auf einer Synology etwa listet die Wurzel die Freigaben, und
+                // neue Freigaben lassen sich per WebDAV nicht erzeugen. Das
+                // merken wir uns für eine brauchbare Meldung weiter unten.
+                if (resp.code == 405 && current == parts.first()) topLevelRefused = true
             }
         }
     }
+
+    /** Erklärt einen 405 beim Schreiben, statt nur die Zahl zu nennen. */
+    private fun explain405(path: String): String =
+        "Der Ordner \u201E${path.substringBefore('/')}\u201C lässt sich nicht anlegen (405). " +
+            "Zeigt die Server-Adresse auf die Freigabe-Ebene? Dort dürfen keine " +
+            "neuen Ordner entstehen — trag den WebDAV-Pfad des Abschnitts " +
+            "innerhalb einer bestehenden Freigabe ein, z. B. \u201Ehome/skribo\u201C."
 
     private fun putJson(server: String, auth: String, path: String, body: JSONObject) {
         val url = "$server/${urlEncodePath(path)}"
@@ -414,6 +428,7 @@ class SkriboSync(
             .build()
         client.newCall(req).execute().use { resp ->
             if (!resp.isSuccessful && resp.code != 201 && resp.code != 204) {
+                if (resp.code == 405) throw IOException(explain405(path))
                 throw IOException("PUT $path → HTTP ${resp.code}")
             }
         }

@@ -23,6 +23,9 @@ dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
     implementation(libs.compose.material3)
+    // Echte Symbole statt Unicode-Zeichen: ein „⚙" fehlt je nach Systemschrift
+    // und erschiene dann als leeres Kästchen.
+    implementation(libs.compose.icons)
 
     // Auf Android kommt org.json aus der Plattform, auf der JVM nicht.
     implementation(libs.json)

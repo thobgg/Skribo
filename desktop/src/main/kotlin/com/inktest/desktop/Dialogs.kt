@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -23,6 +24,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 
@@ -161,14 +164,19 @@ fun ConfirmDialog(
 }
 
 /**
- * Zugangsdaten für den WebDAV-Server. Sie werden in `desktop.properties`
- * neben dem Dokument abgelegt — nicht im Programm und nicht im Repository.
+ * Die Einstellungen des Programms an einer Stelle: Zugangsdaten für den
+ * Server, das aktive Schuljahr und der Ablageort des Dokuments.
+ *
+ * Die Zugangsdaten landen in `desktop.properties` neben dem Dokument — nicht
+ * im Programm und nicht im Repository.
  */
 @Composable
-fun WebdavSettingsDialog(
+fun SettingsDialog(
     initialServer: String,
     initialUser: String,
     initialPassword: String,
+    schoolYear: String,
+    documentPath: String,
     onTest: (String, String, String) -> Unit,
     testResult: String?,
     onConfirm: (server: String, user: String, password: String) -> Unit,
@@ -182,9 +190,15 @@ fun WebdavSettingsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("WebDAV-Server") },
+        title = { Text("Einstellungen") },
         text = {
             Column {
+                Text(
+                    "Server (WebDAV)",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = server,
                     onValueChange = { server = it },
@@ -209,10 +223,43 @@ fun WebdavSettingsDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     testResult ?: "Die Angaben bleiben auf diesem Rechner — sie liegen " +
                         "in desktop.properties neben dem Dokument.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                Spacer(Modifier.height(20.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    "Schuljahr",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "Zurzeit $schoolYear. Umschalten links oben neben den Abschnitten — " +
+                        "ein Wechsel tauscht nur die Handschrift-Ebene, Vorlagen und " +
+                        "Texte bleiben stehen.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    "Ablage",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    documentPath,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                )
+                Text(
+                    "Ein anderer Ort lässt sich über die Umgebungsvariable " +
+                        "SKRIBO_HOME wählen.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

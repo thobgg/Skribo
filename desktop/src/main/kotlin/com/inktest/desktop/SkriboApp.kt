@@ -23,6 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -193,6 +197,7 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                 onRename = { dialog = AppDialog.RenameSection(it) },
                 onDelete = { dialog = AppDialog.DeleteSection(it) },
                 onWebdavPath = { dialog = AppDialog.SectionWebdavPath(it) },
+                onSettings = { webdavTest = null; dialog = AppDialog.WebdavSettings },
             )
             HorizontalDivider()
             Row(Modifier.fillMaxSize()) {
@@ -230,7 +235,6 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         onExportOriginal = ::exportOriginal,
                         onSync = ::push,
                         onPull = ::pull,
-                        onWebdavSettings = { webdavTest = null; dialog = AppDialog.WebdavSettings },
                     )
                     HorizontalDivider()
                     Box(Modifier.fillMaxSize()) {
@@ -405,10 +409,12 @@ private fun AppDialogHost(
             onDismiss = onClose,
         )
 
-        AppDialog.WebdavSettings -> WebdavSettingsDialog(
+        AppDialog.WebdavSettings -> SettingsDialog(
             initialServer = controller.webdavServer,
             initialUser = controller.webdavUsername,
             initialPassword = controller.webdavPassword,
+            schoolYear = controller.schoolYear,
+            documentPath = controller.rootDir.absolutePath,
             onTest = { server, user, password ->
                 onTestWebdav(server, user, password)
             },
@@ -448,6 +454,7 @@ private fun SectionTabs(
     onRename: (Section) -> Unit,
     onDelete: (Section) -> Unit,
     onWebdavPath: (Section) -> Unit,
+    onSettings: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
@@ -494,6 +501,13 @@ private fun SectionTabs(
             }
         }
         TextButton(onClick = onAdd) { Text("+ Abschnitt") }
+
+        // Einstellungen gehören zum Programm, nicht zur Seite — deshalb hier
+        // oben rechts und nicht in der Werkzeugleiste der Seite.
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = onSettings) {
+            Icon(Icons.Default.Settings, contentDescription = "Einstellungen")
+        }
     }
 }
 
@@ -579,7 +593,6 @@ private fun PageToolbar(
     onExportOriginal: () -> Unit,
     onSync: () -> Unit,
     onPull: () -> Unit,
-    onWebdavSettings: () -> Unit,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
@@ -642,11 +655,6 @@ private fun PageToolbar(
                         onClick = { onExportOriginal(); moreOpen = false },
                     )
                 }
-                HorizontalDivider()
-                DropdownMenuItem(
-                    text = { Text("WebDAV-Server …") },
-                    onClick = { onWebdavSettings(); moreOpen = false },
-                )
             }
         }
 

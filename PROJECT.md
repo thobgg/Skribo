@@ -135,6 +135,14 @@ Server-URL, Benutzer/Passwort und aktives Schuljahr sind Geräte-Einstellungen
 (`Prefs` — nicht im Repo). Verbindungstest per `PROPFIND`, Verzeichnisse per `MKCOL`,
 Dateien per `PUT`.
 
+> **Wichtig zur Server-Adresse (geprüft am 20.08.2026):** Auf der Synology
+> listet die WebDAV-Wurzel die **Freigaben** (`Mathematik`, `home`, …). Dort
+> lassen sich per WebDAV **keine neuen Ordner anlegen** — MKCOL antwortet mit
+> 405, und das Schreiben scheitert. Der WebDAV-Pfad eines Abschnitts muss
+> deshalb **innerhalb einer bestehenden Freigabe** liegen, etwa
+> `home/skribo` oder `Mathematik/Analysis12`. Skribo erklärt einen 405 seit
+> diesem Befund im Klartext statt nur die Zahl zu nennen.
+
 **Pfad-Schema** (jede Seite/Unterseite wird zu einem Verzeichnis — Titel müssen
 dateisystem-tauglich sein):
 
