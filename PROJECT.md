@@ -269,7 +269,9 @@ zäh. Zwei Beispiele aus dem Unterricht, die zugleich Anforderungen an Skribo si
 - **Handschrift lässt sich nicht als Ganzes fassen.** Markiert man am PC die am
   Board geschriebenen Striche, entsteht kein zusammenhängendes Objekt, das sich
   verkleinern oder einpassen ließe. Für Skribo hieße das: mehrere Striche
-  auswählen, gemeinsam verschieben und skalieren.
+  auswählen, gemeinsam verschieben und skalieren. **Wichtig dabei: ein einziger
+  Rahmen um die Auswahl, keine Anfasspunkte je Strich.** Im Browser bekommt man
+  beim Verschieben hunderte Griffe — unbrauchbar.
 - **Kein „Platz einfügen".** In der Desktop-Fassung schiebt man alles unterhalb
   eines Punktes nach unten, um Raum zu schaffen. Im Browser fehlt das — beim
   Nacharbeiten einer Seite ein schmerzhafter Verlust. In Skribo wäre es
