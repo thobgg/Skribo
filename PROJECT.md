@@ -46,7 +46,7 @@ Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
   jahresbezogener Handschrift gibt es nicht. Skribo trennt beides (§2a) —
   dieselbe Basis, je Schuljahr eine eigene Annotationsebene.
 
-**Was ausdrücklich NICHT das Ziel ist** (geklärt im Gespräch am 19.08.2026):
+**Was ausdrücklich NICHT das Ziel ist** (Stand 19.08.2026):
 
 - **Kein OneNote-Ersatz für die Schülerseite.** An der Schule laufen
   Teams/MS 365 Education; Schüler bekommen Material über das
