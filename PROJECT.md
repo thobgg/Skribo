@@ -55,6 +55,20 @@ Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
   das Format, das beide Wege lesen.
 - **Keine Latenz-Rettung.** OneNote schreibt am Board gut; der M0-Test belegte
   nur, dass ein eigener Client schnell genug *sein kann*.
+
+> **Praxisbefund vom ersten Schultag (Nachtrag):** Auf einem *neuen* Board ließ
+> sich OneNote gar nicht erst installieren — die aktuelle APK und mehrere ältere
+> scheiterten am Paket-Parser. Auf den Boards des Vorjahres läuft es weiter.
+> Außerdem: Auf einem Board war OneNote zwar installiert, aber nicht angemeldet
+> — die Anmeldung war unbenutzbar (Sekunden bis Minuten je Tastendruck). Der
+> Ausweg war ein Raumtausch mit einer Kollegin.
+>
+> Damit ist präzisiert, was oben steht: Im *laufenden Betrieb* auf einem
+> eingerichteten Board ist OneNote unproblematisch — **Neuinstallation und
+> Erstanmeldung sind es nicht**. Das ist kein Latenzproblem, sondern ein
+> Verteil- und Anmeldeproblem, und es trifft genau dann, wenn man es am
+> wenigsten brauchen kann: am ersten Schultag im neuen Raum. Eine eigene APK
+> ohne Kontozwang löst beides.
 - **Keine laufende Einsicht ins Tafelbild von zuhause.** Im Kursnotizbuch
   konnten Schüler jederzeit nachsehen, was in der Stunde entstand. Das ist
   **bewusst kein Ziel**: Es erwies sich als kontraproduktiv, weil es
