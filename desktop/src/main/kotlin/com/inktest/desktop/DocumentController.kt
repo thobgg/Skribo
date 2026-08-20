@@ -363,6 +363,25 @@ class DocumentController(
     }
 
     /**
+     * Ein Abgleich in beide Richtungen — das, was man landläufig „synchronisieren"
+     * nennt. **Erst senden, dann holen:** Andersherum überschriebe die
+     * Serverfassung die eigenen, noch nicht gesendeten Änderungen.
+     */
+    fun sync(): SyncOutcome {
+        val pushed = push()
+        val pulled = pull()
+        return SyncOutcome(pushed, pulled)
+    }
+
+    data class SyncOutcome(
+        val pushed: SkriboSync.SyncResult,
+        val pulled: SkriboSync.PullResult,
+    ) {
+        val errors: List<String> get() = pushed.errors + pulled.errors
+        val hasChanges: Boolean get() = pulled.added > 0 || pulled.updated > 0 || pushed.pageCount > 0
+    }
+
+    /**
      * Holt die Serverfassung und mischt sie ein. Jede berührte Seite wird
      * gespeichert, sonst stünde das Geholte nur im Arbeitsspeicher.
      */

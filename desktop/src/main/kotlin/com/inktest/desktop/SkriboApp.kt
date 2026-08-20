@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -99,61 +100,53 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
 
     var webdavTest by remember { mutableStateOf<String?>(null) }
 
-    /** Schiebt das Dokument auf den WebDAV-Server; läuft im Hintergrund. */
-    fun push() {
+    /** Zuletzt gezeigter Zustand des Abgleichs, klein in der Leiste. */
+    var syncNote by remember { mutableStateOf<String?>(null) }
+
+    /**
+     * Ein Abgleich in beide Richtungen. [quiet] unterdrückt den Abschlussdialog —
+     * für den automatischen Lauf beim Start, der nicht jedes Mal ein Fenster
+     * aufmachen soll.
+     */
+    fun sync(quiet: Boolean = false) {
         if (!controller.webdavConfigured) {
-            dialog = AppDialog.WebdavSettings
+            if (!quiet) dialog = AppDialog.WebdavSettings
             return
         }
-        busy = "Wird auf den Server geschoben …"
+        if (!quiet) busy = "Wird abgeglichen …"
+        syncNote = "gleicht ab …"
         scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { controller.push() } }
+            val result = withContext(Dispatchers.IO) { runCatching { controller.sync() } }
             busy = null
             result
                 .onSuccess { r ->
-                    dialog = AppDialog.Message(
-                        buildString {
-                            append("${r.pageCount} Seite(n) übertragen.")
-                            if (r.errors.isNotEmpty()) {
-                                append("\n\n${r.errors.size} Fehler:\n")
-                                append(r.errors.take(5).joinToString("\n"))
+                    syncNote = if (r.errors.isEmpty()) "abgeglichen" else "${r.errors.size} Fehler"
+                    if (!quiet || r.errors.isNotEmpty()) {
+                        dialog = AppDialog.Message(
+                            buildString {
+                                append("${r.pushed.pageCount} Seite(n) gesendet, ")
+                                append("${r.pulled.added} neu geholt, ${r.pulled.updated} aktualisiert.")
+                                if (r.errors.isNotEmpty()) {
+                                    append("\n\n${r.errors.size} Fehler:\n")
+                                    append(r.errors.take(5).joinToString("\n"))
+                                }
+                                if (!r.hasChanges && r.errors.isEmpty()) {
+                                    append("\n\nKein Abschnitt hat einen WebDAV-Pfad. " +
+                                        "Rechtsklick auf einen Reiter → „WebDAV-Pfad …“.")
+                                }
                             }
-                            if (r.pageCount == 0 && r.errors.isEmpty()) {
-                                append("\n\nKein Abschnitt hat einen WebDAV-Pfad. " +
-                                    "Rechtsklick auf einen Reiter → „WebDAV-Pfad …“.")
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
-                .onFailure { dialog = AppDialog.Message("Sync fehlgeschlagen:\n${it.message}") }
+                .onFailure {
+                    syncNote = "Abgleich fehlgeschlagen"
+                    if (!quiet) dialog = AppDialog.Message("Abgleich fehlgeschlagen:\n${it.message}")
+                }
         }
     }
 
-    /** Holt die Serverfassung; läuft im Hintergrund. */
-    fun pull() {
-        if (!controller.webdavConfigured) {
-            dialog = AppDialog.WebdavSettings
-            return
-        }
-        busy = "Wird vom Server geholt …"
-        scope.launch {
-            val result = withContext(Dispatchers.IO) { runCatching { controller.pull() } }
-            busy = null
-            result
-                .onSuccess { r ->
-                    dialog = AppDialog.Message(
-                        buildString {
-                            append("${r.added} Seite(n) neu, ${r.updated} aktualisiert.")
-                            if (r.errors.isNotEmpty()) {
-                                append("\n\n${r.errors.size} Fehler:\n")
-                                append(r.errors.take(5).joinToString("\n"))
-                            }
-                        }
-                    )
-                }
-                .onFailure { dialog = AppDialog.Message("Holen fehlgeschlagen:\n${it.message}") }
-        }
-    }
+    // Beim Start einmal abgleichen, ohne zu fragen — wie man es von OneNote kennt.
+    LaunchedEffect(Unit) { if (controller.webdavConfigured) sync(quiet = true) }
 
     /** Gibt das beim Import mitgespeicherte Original wieder heraus. */
     fun exportOriginal() {
@@ -233,8 +226,8 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                         onImportImage = ::importImage,
                         onAddLink = { dialog = AppDialog.NewLink },
                         onExportOriginal = ::exportOriginal,
-                        onSync = ::push,
-                        onPull = ::pull,
+                        onSync = { sync() },
+                        syncNote = syncNote,
                     )
                     HorizontalDivider()
                     Box(Modifier.fillMaxSize()) {
@@ -592,7 +585,7 @@ private fun PageToolbar(
     onAddLink: () -> Unit,
     onExportOriginal: () -> Unit,
     onSync: () -> Unit,
-    onPull: () -> Unit,
+    syncNote: String?,
 ) {
     var paperMenuOpen by remember { mutableStateOf(false) }
     var moreOpen by remember { mutableStateOf(false) }
@@ -629,8 +622,15 @@ private fun PageToolbar(
         // sonst drängeln sich die Knöpfe und ihre Beschriftungen brechen um.
         TextButton(onClick = onImportPdf) { Text("PDF …", maxLines = 1) }
         TextButton(onClick = onImportImage, enabled = page != null) { Text("Bild …", maxLines = 1) }
-        TextButton(onClick = onSync) { Text("Senden", maxLines = 1) }
-        TextButton(onClick = onPull) { Text("Holen", maxLines = 1) }
+        TextButton(onClick = onSync) { Text("Abgleichen", maxLines = 1) }
+        syncNote?.let {
+            Text(
+                it,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
 
         Spacer(Modifier.width(8.dp))
         TextButton(onClick = onUndo, enabled = page?.canUndo() == true) {
