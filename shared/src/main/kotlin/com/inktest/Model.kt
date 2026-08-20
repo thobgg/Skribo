@@ -177,9 +177,22 @@ class Page(
     private val undoStack = ArrayDeque<EditAction>()
     private val redoStack = ArrayDeque<EditAction>()
 
+    /**
+     * Wann diese Seite zuletzt verändert wurde (Millisekunden seit 1970).
+     * Der Abgleich entscheidet damit, welche Fassung gewinnt — ohne das
+     * überschriebe das zuletzt abgleichende Gerät die Arbeit des anderen.
+     */
+    var modifiedAt: Long = 0L
+
+    /** Vermerkt eine Änderung. Wird von allen Bearbeitungswegen aufgerufen. */
+    fun touch(now: Long = System.currentTimeMillis()) {
+        modifiedAt = now
+    }
+
     /** Wendet eine Aktion an, legt sie auf den Undo-Stack und verwirft den Redo-Stack. */
     fun applyAction(action: EditAction) {
         action.redo(this)
+        touch()
         undoStack.addLast(action)
         redoStack.clear()
         if (undoStack.size > MAX_HISTORY) undoStack.removeFirst()
@@ -200,6 +213,7 @@ class Page(
     fun undo(): Boolean {
         val a = undoStack.removeLastOrNull() ?: return false
         a.undo(this)
+        touch()
         redoStack.addLast(a)
         return true
     }
@@ -207,6 +221,7 @@ class Page(
     fun redo(): Boolean {
         val a = redoStack.removeLastOrNull() ?: return false
         a.redo(this)
+        touch()
         undoStack.addLast(a)
         return true
     }
@@ -226,6 +241,7 @@ class Page(
         put("type", "skribo-annotations")
         put("schoolYear", year)
         put("pageId", id)
+        put("modifiedAt", modifiedAt)
         val arr = JSONArray()
         strokes.forEach { arr.put(it.toJson()) }
         put("strokes", arr)
@@ -233,6 +249,7 @@ class Page(
 
     /** Ersetzt die Striche durch die des geladenen Schuljahrs. */
     fun applyAnnotations(j: JSONObject) {
+        modifiedAt = j.optLong("modifiedAt", modifiedAt)
         strokes.clear()
         j.optJSONArray("strokes")?.let { arr ->
             for (i in 0 until arr.length()) {
@@ -254,6 +271,7 @@ class Page(
         put("title", title)
         put("paperStyle", paperStyle.name)
         put("format", format.name)
+        put("modifiedAt", modifiedAt)
         background?.let { put("background", it.toJson()) }
         if (parentId != null) put("parentId", parentId)
         val arr = JSONArray()
@@ -285,7 +303,7 @@ class Page(
                 format = PageFormat.parse(j.optString("format", null)),
                 background = j.optJSONObject("background")
                     ?.let { runCatching { PageBackground.fromJson(it) }.getOrNull() },
-            )
+            ).apply { modifiedAt = j.optLong("modifiedAt", 0L) }
             j.optJSONArray("strokes")?.let { arr ->
                 for (i in 0 until arr.length()) {
                     runCatching { Stroke.fromJson(arr.getJSONObject(i)) }

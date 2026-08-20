@@ -108,9 +108,14 @@ class SkriboSync(
             val sectionPath = section.webdavPath?.trim('/')
             if (sectionPath.isNullOrEmpty()) continue  // section without path is local-only
 
+            // Ordnernamen kommen aus den Titeln — die sind aber nicht eindeutig.
+            // Zwei Seiten „Übung" landeten sonst im selben Ordner und
+            // überschrieben sich gegenseitig.
+            val used = mutableSetOf<String>()
+
             val parentPages = section.pages.filter { it.parentId == null }
             for (parent in parentPages) {
-                val parentTopicPath = "$sectionPath/${parent.title.trim()}/skribo"
+                val parentTopicPath = "$sectionPath/${uniqueSegment(parent, used)}/skribo"
                 try {
                     pushPage(server, auth, parentTopicPath, parent, year)
                     pageCount++
@@ -118,9 +123,10 @@ class SkriboSync(
                     SkriboLog.w(TAG, "push parent '${parent.title}': ${e.message}")
                     errors += "${parent.title}: ${e.message}"
                 }
+                val subUsed = mutableSetOf<String>()
                 val subpages = section.pages.filter { it.parentId == parent.id }
                 for (sub in subpages) {
-                    val subPath = "$parentTopicPath/${sub.title.trim()}"
+                    val subPath = "$parentTopicPath/${uniqueSegment(sub, subUsed)}"
                     try {
                         pushPage(server, auth, subPath, sub, year)
                         pageCount++
@@ -135,12 +141,35 @@ class SkriboSync(
         return SyncResult(pageCount, errors)
     }
 
+    /**
+     * Lädt eine Seite hoch — **außer die Fassung auf dem Server ist neuer**.
+     * Ohne diese Prüfung überschriebe das zuletzt abgleichende Gerät die Arbeit
+     * des anderen: Wer am PC nichts geändert hat und danach abgleicht, löschte
+     * sonst die Handschrift, die inzwischen am Board entstanden ist.
+     */
     private fun pushPage(server: String, auth: String, basePath: String, page: Page, year: String) {
+        val annotationsPath = "$basePath/annotations/$year.json"
+        if (remoteIsNewer(server, auth, annotationsPath, page.modifiedAt)) {
+            SkriboLog.w(TAG, "Server ist neuer, nicht überschrieben: ${page.title}")
+            return
+        }
         ensureDirectory(server, auth, basePath)
         ensureDirectory(server, auth, "$basePath/annotations")
         pushAssets(server, auth, basePath, page)
         putJson(server, auth, "$basePath/base.json", pageToBaseJson(page))
-        putJson(server, auth, "$basePath/annotations/$year.json", page.toAnnotationsJson(year))
+        putJson(server, auth, annotationsPath, page.toAnnotationsJson(year))
+    }
+
+    /** Vergleicht den Änderungszeitpunkt der Serverfassung mit dem lokalen. */
+    private fun remoteIsNewer(
+        server: String,
+        auth: String,
+        path: String,
+        localModifiedAt: Long,
+    ): Boolean {
+        val remote = runCatching { getJson(server, auth, path) }.getOrNull() ?: return false
+        val remoteModified = remote.optLong("modifiedAt", 0L)
+        return remoteModified > localModifiedAt
     }
 
     /** Alle Dateien, auf die eine Seite verweist — relativ zur Dokumentwurzel. */
@@ -312,8 +341,15 @@ class SkriboSync(
         }
     }
 
-    /** Übernimmt Basis und Handschrift der Serverfassung in die lokale Seite. */
+    /**
+     * Übernimmt die Serverfassung — **nur wenn sie neuer ist**. Sonst bleibt
+     * das Lokale stehen; es wandert beim nächsten Senden nach oben.
+     */
     private fun merge(into: Page, from: Page) {
+        if (from.modifiedAt < into.modifiedAt) {
+            SkriboLog.w(TAG, "Lokal ist neuer, Serverfassung verworfen: ${into.title}")
+            return
+        }
         into.title = from.title
         into.paperStyle = from.paperStyle
         into.format = from.format
@@ -322,6 +358,7 @@ class SkriboSync(
         into.imageBoxes.clear(); into.imageBoxes.addAll(from.imageBoxes)
         into.linkBoxes.clear(); into.linkBoxes.addAll(from.linkBoxes)
         into.strokes.clear(); into.strokes.addAll(from.strokes)
+        into.modifiedAt = from.modifiedAt
         // Die Historie gehörte zum vorherigen Inhalt und passt nicht mehr.
         into.clearHistory()
     }
@@ -453,6 +490,41 @@ class SkriboSync(
          * Felder bedeuten „freier Canvas, kein Hintergrund".
          */
         const val SCHEMA_VERSION = 2
+
+        /**
+         * Macht aus einem Seitentitel einen Ordnernamen, den auch ein
+         * Windows-verträgliches Dateisystem annimmt — und eine Synology ist eines.
+         *
+         * Nötig geworden durch einen Fund am echten Server: Der Titel
+         * „Stundenentwurf 20.08." endet auf einen Punkt; DSM benannte den Ordner
+         * daraufhin selbsttätig um („TailCharacterConflict") und legte einen
+         * zweiten an. Datumsangaben in dieser Schreibweise sind im Unterricht die
+         * Regel, nicht die Ausnahme.
+         */
+            internal fun safeSegment(title: String): String {
+            val cleaned = title.trim()
+                .map { if (it in ILLEGAL_IN_NAMES || it.code < 32) '-' else it }
+                .joinToString("")
+                // Punkte und Leerzeichen am Ende sind das eigentliche Problem.
+                .trimEnd('.', ' ')
+                .trim()
+            return cleaned.ifEmpty { "Seite" }
+        }
+
+        /**
+         * Ordnername für eine Seite, eindeutig innerhalb von [used]. Bei
+         * gleichem Titel bekommt die zweite Seite ein Kürzel ihrer Kennung
+         * angehängt — lesbar bleibt es trotzdem.
+         */
+        internal fun uniqueSegment(page: Page, used: MutableSet<String>): String {
+            val base = safeSegment(page.title)
+            val name = if (used.add(base)) base
+            else "$base (${page.id.take(6)})".also { used.add(it) }
+            return name
+        }
+
+        /** Zeichen, die Windows und damit auch DSM in Namen nicht zulassen. */
+        private const val ILLEGAL_IN_NAMES = "\\/:*?\"<>|"
 
         /**
          * Liest die Ordnernamen aus einer PROPFIND-Antwort. Bewusst über einen
