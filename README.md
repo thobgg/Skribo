@@ -77,6 +77,8 @@ dieselbe, deshalb sieht ein am Board geschriebener Zug am PC exakt gleich aus.
 - **Ansicht** — scrollen, mit `Strg`+Mausrad zoomen; auch neben dem Blatt ist
   Platz für Notizen am Rand.
 - **Schuljahr umschalten** — tauscht nur die Handschrift-Ebene.
+- **Abgleichen** — ein Knopf für beide Richtungen; beim Start läuft er von
+  selbst. Einstellungen sitzen hinter dem Zahnrad oben rechts.
 
 ## Board-Client
 
@@ -85,6 +87,8 @@ dieselbe, deshalb sieht ein am Board geschriebener Zug am PC exakt gleich aus.
 - Werkzeuge: Stift, Textmarker, Linie, Text, Bild, Radierer
 - Papierstile: blanko, liniert, kariert, Punkte, gelb liniert
 - Zeigt die am PC vorbereiteten Seiten formatgerecht mit ihrer Vorlage
+- Gleicht über denselben Server ab — ohne Konto, ohne Anmeldung: WebDAV-Zugang
+  einmal eintragen, fertig
 - Tuning-/Metrics-Panel zum Vermessen der Zeichenleistung auf dem jeweiligen Board
 
 ## Daten und Synchronisierung
@@ -104,10 +108,25 @@ Auf dem Desktop unter `~/.local/share/skribo` (Linux), `%APPDATA%\skribo`
 lässt sich über die Umgebungsvariable `SKRIBO_HOME` wählen.
 
 Die Synchronisierung läuft über einen **selbst betriebenen WebDAV-Server** (etwa
-das WebDAV-Paket einer Synology). Adresse, Benutzer und Passwort trägt man im
-Programm ein — sie landen in `desktop.properties` neben dem Dokument, **nicht im
-Repository**. Ein Abschnitt wird nur synchronisiert, wenn man ihm per Rechtsklick
-einen WebDAV-Pfad gibt; ohne Pfad bleibt er lokal.
+das WebDAV-Paket einer Synology). Adresse, Benutzer und Passwort trägt man unter
+dem Zahnrad ein — sie landen in `desktop.properties` neben dem Dokument, **nicht
+im Repository**. Ein Abschnitt wird nur synchronisiert, wenn man ihm per
+Rechtsklick einen WebDAV-Pfad gibt; ohne Pfad bleibt er lokal.
+
+Es gibt **einen Knopf: „Abgleichen"**. In welche Richtung Daten fließen, ist
+Sache des Programms — es sendet und holt in einem Zug. Beim Start gleicht der
+Desktop-Client von selbst ab, sofern ein Server eingetragen ist.
+
+> **Der Pfad muss innerhalb einer bestehenden Freigabe liegen.** Auf einer
+> Synology listet die WebDAV-Wurzel die Freigaben, und dort lassen sich keine
+> neuen Ordner anlegen — `Mathematik/Analysis12` funktioniert, `Analysis12`
+> nicht. Skribo erklärt das, wenn es passiert.
+
+**Damit keine Arbeit verlorengeht**, trägt jede Seite einen Änderungszeitpunkt:
+Gesendet wird nur, was nicht älter ist als die Fassung auf dem Server, und
+übernommen ebenso. Ohne das überschriebe das zuletzt abgleichende Gerät die
+Arbeit des anderen — wer am PC nichts geändert hat und danach abgleicht,
+löschte sonst die Handschrift, die inzwischen am Board entstanden ist.
 
 Auf dem Server liegt dieselbe Aufteilung wieder:
 
@@ -148,24 +167,27 @@ In Entwicklung, im täglichen Gebrauch noch nicht erprobt.
 
 **Da:** Planung am Desktop (Struktur, PDF-Import, Text, Bilder, Verweise,
 Anordnen, Zoomen), Schuljahr-Ebenen in beiden Clients, Anzeige der Vorlagen am
-Board, und die Synchronisierung in beide Richtungen — Senden und Holen,
-einschließlich der Assets.
+Board, und die Synchronisierung in beide Richtungen einschließlich der Assets —
+**gegen eine echte Synology durchgespielt**: am PC eine Seite anlegen, am Board
+darauf schreiben, am PC die Handschrift wiederfinden.
 
 **Fehlt:** Textformatierung; Seiten zwischen Abschnitten verschieben; Suche;
 Löschungen werden nicht übertragen (eine lokal gelöschte Seite kommt beim
-nächsten Holen zurück).
+nächsten Abgleich zurück); und der Abgleich löst Konflikte nach dem Grundsatz
+„die neuere Fassung gewinnt" — wer dieselbe Seite an beiden Geräten ändert,
+ohne zwischendurch abzugleichen, verliert die ältere Fassung.
 
-> ⚠️ **Die Synchronisierung ist noch nicht gegen einen echten Server gelaufen.**
-> Sie wurde vollständig durchgespielt — senden, holen, ändern, zurückholen,
-> samt Assets — aber gegen einen eigens dafür geschriebenen Test-WebDAV, nicht
-> gegen eine Synology, Nextcloud oder Apache. Erfahrungsgemäß unterscheiden
-> sich solche Server genau dort, wo es weh tut: bei den PROPFIND-Antworten, bei
-> Umlauten und Sonderzeichen in Ordnernamen (Seitentitel werden zu Ordnern!)
-> und bei den Statuscodes.
+> ⚠️ **Geprüft ist bisher nur gegen eine Synology (DSM).** Nextcloud, Apache
+> oder ownCloud verhalten sich in Details anders — bei den PROPFIND-Antworten,
+> den Statuscodes und den erlaubten Zeichen in Ordnernamen. Und genau dort
+> steckten die Fehler: Ein Seitentitel mit Punkt am Ende („Stundenentwurf
+> 20.08.") ließ DSM den Ordner eigenmächtig umbenennen; zwei Seiten gleichen
+> Titels landeten im selben Ordner. Beides ist behoben, aber es zeigt, wo man
+> hinsehen muss.
 >
-> **Wer es ausprobiert, sollte deshalb mit einem eigenen Testordner anfangen**
-> — einem Abschnitt mit einem WebDAV-Pfad wie `skribo-test`, nicht mit dem
-> Ordner, in dem echtes Material liegt.
+> **Wer es ausprobiert, sollte mit einem eigenen Testordner anfangen** — einem
+> Abschnitt mit einem Pfad wie `home/skribo-test`, nicht mit dem Ordner, in dem
+> echtes Material liegt.
 
 Nützlich für eine Fehlermeldung: welcher Server (Produkt und Version), was
 passieren sollte, was stattdessen passierte, und die Meldung, die Skribo
