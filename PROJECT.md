@@ -261,6 +261,21 @@ produktionsreif.
   Stift-Druck am Desktop ist zweitrangig, da Ink primär am Board stattfindet.
 - **Lizenz GPLv3**, interne APK-Distribution (kein Store).
 
+## 6a. Was am Browser-OneNote fehlt (Praxisnotiz 20.08.2026)
+
+Die Web-Fassung trägt die Planung unter Linux grundsätzlich, ist im Alltag aber
+zäh. Zwei Beispiele aus dem Unterricht, die zugleich Anforderungen an Skribo sind:
+
+- **Handschrift lässt sich nicht als Ganzes fassen.** Markiert man am PC die am
+  Board geschriebenen Striche, entsteht kein zusammenhängendes Objekt, das sich
+  verkleinern oder einpassen ließe. Für Skribo hieße das: mehrere Striche
+  auswählen, gemeinsam verschieben und skalieren.
+- **Kein „Platz einfügen".** In der Desktop-Fassung schiebt man alles unterhalb
+  eines Punktes nach unten, um Raum zu schaffen. Im Browser fehlt das — beim
+  Nacharbeiten einer Seite ein schmerzhafter Verlust. In Skribo wäre es
+  überschaubar umzusetzen: alles unterhalb einer Höhe um einen Betrag
+  verschieben, rückgängig-machbar wie jede andere Aktion.
+
 ## 7. Offene Punkte / To decide
 
 - Monorepo-Zielstruktur beim Umbau (M2): `shared/` + `android/` + `desktop/` —
