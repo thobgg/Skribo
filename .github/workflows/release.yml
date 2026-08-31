@@ -1,0 +1,73 @@
+# Baut bei jedem Tag vX.Y.Z die Pakete für alle Plattformen und hängt sie
+# an ein GitHub-Release. Manueller Testlauf über "Run workflow" möglich
+# (dann nur Artefakte, kein Release).
+name: Release-Pakete
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            paket: desktop/build/compose/binaries/main/deb/*.deb
+          - os: windows-latest
+            paket: desktop/build/compose/binaries/main/msi/*.msi
+          - os: macos-latest
+            paket: desktop/build/compose/binaries/main/dmg/*.dmg
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Desktop-Paket bauen
+        shell: bash
+        run: ./gradlew :desktop:packageDistributionForCurrentOS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.os }}
+          path: ${{ matrix.paket }}
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Board-APK bauen
+        run: |
+          ./gradlew :android:assembleDebug
+          mv android/build/outputs/apk/debug/android-debug.apk skribo-board-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: skribo-board-debug.apk
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [desktop, android]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: pakete
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: pakete/**
+          fail_on_unmatched_files: true
