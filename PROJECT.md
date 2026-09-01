@@ -155,17 +155,29 @@ Dateien per `PUT`.
 > `home/skribo` oder `Mathematik/Analysis12`. Skribo erklärt einen 405 seit
 > diesem Befund im Klartext statt nur die Zahl zu nennen.
 
-**Pfad-Schema** (jede Seite/Unterseite wird zu einem Verzeichnis — Titel müssen
-dateisystem-tauglich sein):
+**Pfad-Schema** (seit 01.09.2026 mit Notizbuch-Ebene wie in OneNote —
+Notizbücher → Abschnitte → Seiten; jede Seite/Unterseite wird zu einem
+Verzeichnis):
 
 ```
-<webdavServer>/<section.webdavPath>/<page>/skribo/base.json
-<webdavServer>/<section.webdavPath>/<page>/skribo/annotations/<schuljahr>.json
-<webdavServer>/<section.webdavPath>/<page>/skribo/<unterseite>/base.json
-<webdavServer>/<section.webdavPath>/<page>/skribo/<unterseite>/annotations/<schuljahr>.json
+<server>/<basisPfad>/<notizbuch>/<abschnitt>/<seite>/skribo/base.json
+<server>/<basisPfad>/<notizbuch>/<abschnitt>/<seite>/skribo/annotations/<schuljahr>.json
+<server>/<basisPfad>/<notizbuch>/<abschnitt>/<seite>/skribo/<unterseite>/…
 ```
 
-- `section.webdavPath` — pro Abschnitt konfiguriert; leer ⇒ Abschnitt bleibt lokal.
+- **Basis-Pfad**: *eine* zentrale Geräte-Einstellung (z. B. `home/skribo`),
+  muss innerhalb einer bestehenden Freigabe liegen. Der Verbindungstest macht
+  dort eine **Schreibprobe** (MKCOL + DELETE) — „Test grün" heißt seither
+  wirklich „Schreiben klappt", nicht nur „Server da".
+- Notizbuch- und Abschnitts-Ordnernamen werden **einmal** aus dem Namen
+  abgeleitet und dann fest gespeichert (`folderName`) — Umbenennen verschiebt
+  keine Ordner mehr. Abschnitte haben nur noch einen Schalter
+  „abgleichen ja/nein" (neue: an); Pfade tippt niemand mehr.
+- **Altbestand:** ein früherer `section.webdavPath` gewinnt weiterhin gegen
+  die Basis-Ableitung, damit bestehende Einrichtungen ohne Umzug weiterlaufen;
+  beim Ausschalten des Abgleichs wird er gelöscht. Das alte
+  `document.json`-Format (Abschnitte ohne Notizbuch) wird beim Laden in ein
+  Standard-Notizbuch migriert.
 - **`base.json`** (`type: skribo-base`, `schemaVersion: 1`): Titel, Papierstil,
   Texte, Bilder — die *stabile* Seitenbasis. **Geplant (schemaVersion 2):**
   Medienboxen für PDF, Video, Audio; Mediendateien liegen wie Bilder als
@@ -237,6 +249,16 @@ produktionsreif.
       Offen: Umschalter am Board, Vorjahr als Vorlage übernehmen.
 - [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
       Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
+  - [x] **Sync-Fehler sichtbar machen (Befund 01.09.2026, erledigt am selben
+        Tag):** Beide Clients zeigen Abgleich-Fehler jetzt als **kopierbaren
+        Text im Dialog** (Desktop: SelectionContainer + Kopieren-Knopf; Board:
+        `setTextIsSelectable` + Zwischenablage) statt nur stderr/Logcat/Toast.
+        Der Verbindungstest macht eine **Schreibprobe auf dem Basis-Pfad** —
+        der 405 auf Freigabe-Ebene fällt damit schon beim Einrichten auf.
+  - [x] **Notizbuch-Ebene + zentraler Basis-Pfad (01.09.2026):** Hierarchie
+        wie OneNote (Notizbuch → Abschnitt → Seite) in Modell, Ablage, Sync
+        und beiden UIs; Abschnitte nur noch mit Schalter „abgleichen", Ordner-
+        namen fest, Migration von Altformat und Alt-Pfaden. Details in §2a.
 - [ ] **M5 — Board-Rollout:** Stabilität/Politur, APK-Verteilung auf die
       schuleigenen CTOUCH-Boards, Betrieb
 
