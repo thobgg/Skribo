@@ -123,7 +123,7 @@ class PdfImporterTest {
         c.flush()
 
         val reloaded = DocumentStore(dir).load(YEAR)
-        val page = reloaded.sections.first().pages.first { it.background != null }
+        val page = reloaded.allSections().first().pages.first { it.background != null }
         val bg = page.background!!
         assertEquals("Arbeitsblatt.pdf", bg.sourceName)
         val storedPath = bg.sourceAssetPath
@@ -152,7 +152,7 @@ class PdfImporterTest {
 
         assertEquals(2, added)
         val reloaded = DocumentStore(dir).load(YEAR)
-        val imported = reloaded.sections.first().pages.filter { it.background != null }
+        val imported = reloaded.allSections().first().pages.filter { it.background != null }
         assertEquals(2, imported.size)
         imported.forEach {
             assertEquals(PageFormat.A4_PORTRAIT, it.format)

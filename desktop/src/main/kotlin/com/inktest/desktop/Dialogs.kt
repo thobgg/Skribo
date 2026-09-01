@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -175,16 +177,18 @@ fun SettingsDialog(
     initialServer: String,
     initialUser: String,
     initialPassword: String,
+    initialBasePath: String,
     schoolYear: String,
     documentPath: String,
-    onTest: (String, String, String) -> Unit,
+    onTest: (String, String, String, String) -> Unit,
     testResult: String?,
-    onConfirm: (server: String, user: String, password: String) -> Unit,
+    onConfirm: (server: String, user: String, password: String, basePath: String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var server by remember { mutableStateOf(initialServer) }
     var user by remember { mutableStateOf(initialUser) }
     var password by remember { mutableStateOf(initialPassword) }
+    var basePath by remember { mutableStateOf(initialBasePath) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(Unit) { focus.requestFocus() }
 
@@ -222,6 +226,20 @@ fun SettingsDialog(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = basePath,
+                    onValueChange = { basePath = it },
+                    label = { Text("Basis-Ordner auf dem Server, z. B. home/skribo") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Darunter liegt je Notizbuch ein Ordner, darin je Abschnitt einer — " +
+                        "niemand muss mehr Pfade je Abschnitt eintragen. Der Ordner muss " +
+                        "innerhalb einer bestehenden Freigabe liegen.",
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -267,14 +285,58 @@ fun SettingsDialog(
         confirmButton = {
             Row {
                 TextButton(
-                    onClick = { onTest(server.trim(), user.trim(), password) },
+                    onClick = { onTest(server.trim(), user.trim(), password, basePath.trim()) },
                     enabled = server.isNotBlank() && user.isNotBlank(),
                 ) { Text("Verbindung testen") }
                 TextButton(
-                    onClick = { onConfirm(server.trim(), user.trim(), password) },
+                    onClick = { onConfirm(server.trim(), user.trim(), password, basePath.trim()) },
                 ) { Text("Speichern") }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Abbrechen") } },
+    )
+}
+
+/**
+ * Abgleich-Fehler mit vollem Wortlaut: markierbar, scrollbar und per Knopf in
+ * die Zwischenablage — geboren aus einem Abend, an dem die Fehler nur auf
+ * stderr standen und der Sync wie erfolgreich aussah.
+ */
+@Composable
+fun SyncErrorsDialog(
+    summary: String,
+    errors: List<String>,
+    onClose: () -> Unit,
+) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val wortlaut = errors.joinToString("\n")
+    AlertDialog(
+        onDismissRequest = onClose,
+        title = { Text("Abgleich: ${errors.size} Fehler") },
+        text = {
+            Column {
+                Text(summary)
+                Spacer(Modifier.height(12.dp))
+                androidx.compose.foundation.text.selection.SelectionContainer {
+                    Text(
+                        wortlaut,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(220.dp)
+                            .verticalScroll(rememberScrollState()),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = {
+                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(wortlaut))
+                }) { Text("Kopieren") }
+                TextButton(onClick = onClose) { Text("OK") }
+            }
+        },
     )
 }

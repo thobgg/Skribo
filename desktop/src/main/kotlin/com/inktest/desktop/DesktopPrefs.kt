@@ -22,6 +22,10 @@ class DesktopPrefs(private val file: File) {
         }
     }
 
+    var activeNotebookId: String?
+        get() = props.getProperty(KEY_NOTEBOOK)?.ifEmpty { null }
+        set(v) = set(KEY_NOTEBOOK, v)
+
     var activeSectionId: String?
         get() = props.getProperty(KEY_SECTION)?.ifEmpty { null }
         set(v) = set(KEY_SECTION, v)
@@ -49,6 +53,14 @@ class DesktopPrefs(private val file: File) {
         get() = props.getProperty(KEY_PASSWORD).orEmpty()
         set(v) = set(KEY_PASSWORD, v)
 
+    /**
+     * Ordner auf dem Server, unter dem alle Notizbücher liegen — die eine
+     * zentrale Pfad-Angabe statt eines Pfads je Abschnitt.
+     */
+    var webdavBasePath: String
+        get() = props.getProperty(KEY_BASE_PATH).orEmpty()
+        set(v) = set(KEY_BASE_PATH, v.trim().trim('/'))
+
     /** Ob überhaupt genug für einen Sync eingetragen ist. */
     val webdavConfigured: Boolean
         get() = webdavServer.isNotBlank() && webdavUsername.isNotBlank()
@@ -58,6 +70,7 @@ class DesktopPrefs(private val file: File) {
         username = webdavUsername,
         password = webdavPassword,
         schoolYear = activeSchoolYear,
+        basePath = webdavBasePath,
     )
 
     /** Schuljahr, dessen Annotationsebene gerade bearbeitet wird. */
@@ -79,6 +92,8 @@ class DesktopPrefs(private val file: File) {
 
     private companion object {
         const val TAG = "DesktopPrefs"
+        const val KEY_NOTEBOOK = "activeNotebookId"
+        const val KEY_BASE_PATH = "webdavBasePath"
         const val KEY_SECTION = "activeSectionId"
         const val KEY_PAGE = "activePageId"
         const val KEY_YEAR = "activeSchoolYear"

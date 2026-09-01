@@ -27,11 +27,11 @@ class DocumentControllerTest {
     @Test
     fun `neuer abschnitt wird angelegt und aktiv`() {
         val (c, _) = controller()
-        val before = c.document.sections.size
+        val before = c.document.allSections().size
 
         c.addSection("Stochastik")
 
-        assertEquals(before + 1, c.document.sections.size)
+        assertEquals(before + 1, c.document.allSections().size)
         assertEquals("Stochastik", c.activeSection?.name)
         // Ein leerer Abschnitt wäre eine Sackgasse — er startet mit einer Seite.
         assertEquals(1, c.activeSection?.pages?.size)
@@ -41,12 +41,12 @@ class DocumentControllerTest {
     @Test
     fun `abschnitt loeschen setzt die auswahl auf den verbleibenden`() {
         val (c, _) = controller()
-        val first = c.document.sections.first()
+        val first = c.document.allSections().first()
         c.addSection("Zweiter")
 
         c.deleteSection(c.activeSection!!)
 
-        assertEquals(1, c.document.sections.size)
+        assertEquals(1, c.document.allSections().size)
         assertSame(first, c.activeSection)
         assertNotNull(c.activePage)
     }
@@ -55,9 +55,9 @@ class DocumentControllerTest {
     fun `letzten abschnitt loeschen laesst keine seite aktiv`() {
         val (c, _) = controller()
 
-        c.deleteSection(c.document.sections.first())
+        c.deleteSection(c.document.allSections().first())
 
-        assertTrue(c.document.sections.isEmpty())
+        assertTrue(c.document.allSections().isEmpty())
         assertNull(c.activeSection)
         assertNull(c.activePage)
     }
@@ -127,15 +127,54 @@ class DocumentControllerTest {
     }
 
     @Test
-    fun `leerer webdav pfad bedeutet nur lokal`() {
+    fun `neuer abschnitt gleicht sich von selbst ab und hat einen festen ordnernamen`() {
+        val (c, _) = controller()
+
+        c.addSection("Stochastik 13")
+
+        val section = c.activeSection!!
+        assertTrue(section.syncEnabled, "Niemand soll mehr Pfade je Abschnitt eintragen müssen")
+        assertEquals("Stochastik 13", section.folderName)
+    }
+
+    @Test
+    fun `abgleich ausschalten nimmt den altbestands-pfad mit`() {
         val (c, _) = controller()
         val section = c.activeSection!!
+        section.webdavPath = "home/skribo-test/Analysis12"
+        section.syncEnabled = true
 
-        c.setSectionWebdavPath(section, "  Schuljahr/Analysis  ")
-        assertEquals("Schuljahr/Analysis", section.webdavPath)
+        c.setSectionSyncEnabled(section, false)
 
-        c.setSectionWebdavPath(section, "   ")
-        assertNull(section.webdavPath)
+        assertNull(section.webdavPath, "Sonst gewönne der alte Pfad beim Wiedereinschalten")
+        assertTrue(!section.syncEnabled)
+    }
+
+    @Test
+    fun `neues notizbuch wird aktiv und startet mit abschnitt und seite`() {
+        val (c, _) = controller()
+        val before = c.document.notebooks.size
+
+        c.addNotebook("Geographie")
+
+        assertEquals(before + 1, c.document.notebooks.size)
+        assertEquals("Geographie", c.activeNotebook?.name)
+        assertNotNull(c.activeSection, "Ein leeres Notizbuch wäre eine Sackgasse")
+        assertNotNull(c.activePage)
+    }
+
+    @Test
+    fun `notizbuchwechsel nimmt abschnitt und seite mit`() {
+        val (c, _) = controller()
+        val erstes = c.activeNotebook!!
+        val ersteSeite = c.activePage
+        c.addNotebook("Geographie")
+
+        c.selectNotebook(erstes)
+
+        assertSame(erstes, c.activeNotebook)
+        assertSame(erstes.sections.first(), c.activeSection)
+        assertSame(ersteSeite, c.activePage)
     }
 
     @Test
@@ -152,7 +191,7 @@ class DocumentControllerTest {
         c.flush()
 
         val reloaded = DocumentStore(dir).load(YEAR)
-        val section = reloaded.sections.first { it.name == "Geometrie" }
+        val section = reloaded.allSections().first { it.name == "Geometrie" }
         val loadedPage = section.pages.single()
         assertEquals("Strahlensätze", loadedPage.title)
         assertEquals(PaperStyle.GRID, loadedPage.paperStyle)
@@ -191,7 +230,7 @@ class DocumentControllerTest {
 
         val c = DocumentController(Document.default(), DesktopRepository(store), prefs)
 
-        assertSame(c.document.sections.first(), c.activeSection)
+        assertSame(c.document.allSections().first(), c.activeSection)
         assertNotNull(c.activePage)
     }
 

@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.inktest.ImageBox
 import com.inktest.LinkBox
+import com.inktest.Notebook
 import com.inktest.Page
 import com.inktest.PageFormat
 import com.inktest.PaperStyle
@@ -122,25 +123,29 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                 .onSuccess { r ->
                     syncNote = if (r.errors.isEmpty()) "abgeglichen" else "${r.errors.size} Fehler"
                     if (!quiet || r.errors.isNotEmpty()) {
-                        dialog = AppDialog.Message(
-                            buildString {
-                                append("${r.pushed.pageCount} Seite(n) gesendet, ")
-                                append("${r.pulled.added} neu geholt, ${r.pulled.updated} aktualisiert.")
-                                if (r.errors.isNotEmpty()) {
-                                    append("\n\n${r.errors.size} Fehler:\n")
-                                    append(r.errors.take(5).joinToString("\n"))
-                                }
-                                if (!r.hasChanges && r.errors.isEmpty()) {
-                                    append("\n\nKein Abschnitt hat einen WebDAV-Pfad. " +
-                                        "Rechtsklick auf einen Reiter → „WebDAV-Pfad …“.")
-                                }
+                        val summary = buildString {
+                            append("${r.pushed.pageCount} Seite(n) gesendet, ")
+                            append("${r.pulled.added} neu geholt, ${r.pulled.updated} aktualisiert.")
+                            if (!r.hasChanges && r.errors.isEmpty()) {
+                                append(
+                                    "\n\nKein Abschnitt wird abgeglichen. Rechtsklick auf " +
+                                        "einen Reiter → „Abgleichen einschalten“ — und in den " +
+                                        "Einstellungen muss der Basis-Ordner gesetzt sein."
+                                )
                             }
-                        )
+                        }
+                        dialog = if (r.errors.isEmpty()) AppDialog.Message(summary)
+                        else AppDialog.SyncErrors(summary, r.errors)
                     }
                 }
                 .onFailure {
                     syncNote = "Abgleich fehlgeschlagen"
-                    if (!quiet) dialog = AppDialog.Message("Abgleich fehlgeschlagen:\n${it.message}")
+                    // Auch der stille Start-Abgleich darf nicht stumm scheitern —
+                    // genau so blieb ein toter Sync einmal wochenlang unbemerkt.
+                    dialog = AppDialog.SyncErrors(
+                        "Abgleich fehlgeschlagen.",
+                        listOf(it.message ?: it.toString()),
+                    )
                 }
         }
     }
@@ -183,13 +188,19 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                 activeYear = controller.schoolYear,
                 availableYears = controller.availableYears(),
                 onSelectYear = controller::switchYear,
-                sections = controller.document.sections,
+                notebooks = controller.document.notebooks,
+                activeNotebook = controller.activeNotebook,
+                onSelectNotebook = controller::selectNotebook,
+                onAddNotebook = { dialog = AppDialog.NewNotebook },
+                onRenameNotebook = { dialog = AppDialog.RenameNotebook(it) },
+                onDeleteNotebook = { dialog = AppDialog.DeleteNotebook(it) },
+                sections = controller.activeNotebook?.sections.orEmpty(),
                 active = controller.activeSection,
                 onSelect = controller::selectSection,
                 onAdd = { dialog = AppDialog.NewSection },
                 onRename = { dialog = AppDialog.RenameSection(it) },
                 onDelete = { dialog = AppDialog.DeleteSection(it) },
-                onWebdavPath = { dialog = AppDialog.SectionWebdavPath(it) },
+                onToggleSync = { controller.setSectionSyncEnabled(it, !(it.syncEnabled || it.webdavPath != null)) },
                 onSettings = { webdavTest = null; dialog = AppDialog.WebdavSettings },
             )
             HorizontalDivider()
@@ -280,13 +291,15 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
         dialog = dialog,
         controller = controller,
         webdavTestResult = webdavTest,
-        onTestWebdav = { server, user, password ->
+        onTestWebdav = { server, user, password, basePath ->
             webdavTest = "Wird geprüft …"
             scope.launch {
                 val error = withContext(Dispatchers.IO) {
-                    controller.testConnection(server, user, password)
+                    controller.testConnection(server, user, password, basePath)
                 }
-                webdavTest = error?.let { "Fehler: $it" } ?: "Verbindung steht."
+                webdavTest = error?.let { "Fehler: $it" }
+                    ?: if (basePath.isBlank()) "Verbindung steht. (Ohne Basis-Ordner wird aber nichts abgeglichen.)"
+                    else "Verbindung steht, Basis-Ordner ist beschreibbar."
             }
         },
     ) { dialog = null }
@@ -296,10 +309,12 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
 
 /** Welcher Dialog gerade offen ist — ein Zustand statt vieler Boolean-Flags. */
 sealed interface AppDialog {
+    data object NewNotebook : AppDialog
+    data class RenameNotebook(val notebook: Notebook) : AppDialog
+    data class DeleteNotebook(val notebook: Notebook) : AppDialog
     data object NewSection : AppDialog
     data class RenameSection(val section: Section) : AppDialog
     data class DeleteSection(val section: Section) : AppDialog
-    data class SectionWebdavPath(val section: Section) : AppDialog
     data object NewPage : AppDialog
     data class NewSubpage(val parent: Page) : AppDialog
     data class RenamePage(val page: Page) : AppDialog
@@ -309,6 +324,9 @@ sealed interface AppDialog {
     data class EditLink(val box: LinkBox) : AppDialog
     /** Reine Rückmeldung, etwa wenn ein Import fehlschlägt. */
     data class Message(val text: String) : AppDialog
+
+    /** Abgleich-Fehler — mit kopierbarem Wortlaut, nicht nur einer Zahl. */
+    data class SyncErrors(val summary: String, val errors: List<String>) : AppDialog
 }
 
 @Composable
@@ -316,11 +334,32 @@ private fun AppDialogHost(
     dialog: AppDialog?,
     controller: DocumentController,
     webdavTestResult: String?,
-    onTestWebdav: (String, String, String) -> Unit,
+    onTestWebdav: (String, String, String, String) -> Unit,
     onClose: () -> Unit,
 ) {
     when (dialog) {
         null -> Unit
+
+        AppDialog.NewNotebook -> TextInputDialog(
+            title = "Neues Notizbuch", label = "Name", initial = "Notizbuch",
+            confirmLabel = "Anlegen",
+            onConfirm = { controller.addNotebook(it); onClose() }, onDismiss = onClose,
+        )
+
+        is AppDialog.RenameNotebook -> TextInputDialog(
+            title = "Notizbuch umbenennen", label = "Name", initial = dialog.notebook.name,
+            onConfirm = { controller.renameNotebook(dialog.notebook, it); onClose() },
+            onDismiss = onClose,
+        )
+
+        is AppDialog.DeleteNotebook -> ConfirmDialog(
+            title = "Notizbuch löschen",
+            message = "„${dialog.notebook.name}“ wird mit allen " +
+                "${dialog.notebook.sections.size} Abschnitt(en) gelöscht. " +
+                "Das lässt sich nicht rückgängig machen.",
+            onConfirm = { controller.deleteNotebook(dialog.notebook); onClose() },
+            onDismiss = onClose,
+        )
 
         AppDialog.NewSection -> TextInputDialog(
             title = "Neuer Abschnitt", label = "Name", initial = "Abschnitt",
@@ -339,15 +378,6 @@ private fun AppDialogHost(
             message = "„${dialog.section.name}“ wird mit allen " +
                 "${dialog.section.pages.size} Seite(n) gelöscht. Das lässt sich nicht rückgängig machen.",
             onConfirm = { controller.deleteSection(dialog.section); onClose() },
-            onDismiss = onClose,
-        )
-
-        is AppDialog.SectionWebdavPath -> TextInputDialog(
-            title = "WebDAV-Pfad",
-            label = "Pfad auf dem Server (leer = nur lokal)",
-            initial = dialog.section.webdavPath.orEmpty(),
-            confirmLabel = "Speichern",
-            onConfirm = { controller.setSectionWebdavPath(dialog.section, it); onClose() },
             onDismiss = onClose,
         )
 
@@ -406,14 +436,15 @@ private fun AppDialogHost(
             initialServer = controller.webdavServer,
             initialUser = controller.webdavUsername,
             initialPassword = controller.webdavPassword,
+            initialBasePath = controller.webdavBasePath,
             schoolYear = controller.schoolYear,
             documentPath = controller.rootDir.absolutePath,
-            onTest = { server, user, password ->
-                onTestWebdav(server, user, password)
+            onTest = { server, user, password, basePath ->
+                onTestWebdav(server, user, password, basePath)
             },
             testResult = webdavTestResult,
-            onConfirm = { server, user, password ->
-                controller.setWebdav(server, user, password)
+            onConfirm = { server, user, password, basePath ->
+                controller.setWebdav(server, user, password, basePath)
                 onClose()
             },
             onDismiss = onClose,
@@ -425,6 +456,12 @@ private fun AppDialogHost(
             confirmLabel = "OK",
             onConfirm = onClose,
             onDismiss = onClose,
+        )
+
+        is AppDialog.SyncErrors -> SyncErrorsDialog(
+            summary = dialog.summary,
+            errors = dialog.errors,
+            onClose = onClose,
         )
     }
 }
@@ -440,13 +477,19 @@ private fun SectionTabs(
     activeYear: String,
     availableYears: List<String>,
     onSelectYear: (String) -> Unit,
+    notebooks: List<Notebook>,
+    activeNotebook: Notebook?,
+    onSelectNotebook: (Notebook) -> Unit,
+    onAddNotebook: () -> Unit,
+    onRenameNotebook: (Notebook) -> Unit,
+    onDeleteNotebook: (Notebook) -> Unit,
     sections: List<Section>,
     active: Section?,
     onSelect: (Section) -> Unit,
     onAdd: () -> Unit,
     onRename: (Section) -> Unit,
     onDelete: (Section) -> Unit,
-    onWebdavPath: (Section) -> Unit,
+    onToggleSync: (Section) -> Unit,
     onSettings: () -> Unit,
 ) {
     Row(
@@ -454,17 +497,26 @@ private fun SectionTabs(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // Schuljahr ganz links: Es bestimmt, welche Handschrift überhaupt zu
+        // Notizbuch ganz links — wie in OneNote die oberste Ebene, aus der
+        // sich alles Weitere (Abschnitte, Seiten) ergibt.
+        NotebookPicker(
+            revision, notebooks, activeNotebook,
+            onSelectNotebook, onAddNotebook, onRenameNotebook, onDeleteNotebook,
+        )
+        // Schuljahr daneben: Es bestimmt, welche Handschrift überhaupt zu
         // sehen ist — das gehört sichtbar an den Anfang, nicht in ein Untermenü.
         SchoolYearPicker(revision, activeYear, availableYears, onSelectYear)
         VerticalDivider(Modifier.height(24.dp))
 
         sections.forEach { section ->
             val selected = section === active
+            val synced = section.syncEnabled || section.webdavPath != null
             ContextMenuArea(items = {
                 listOf(
                     ContextMenuItem("Umbenennen") { onRename(section) },
-                    ContextMenuItem("WebDAV-Pfad …") { onWebdavPath(section) },
+                    ContextMenuItem(
+                        if (synced) "Abgleichen ausschalten" else "Abgleichen einschalten"
+                    ) { onToggleSync(section) },
                     ContextMenuItem("Löschen") { onDelete(section) },
                 )
             }) {
@@ -484,8 +536,7 @@ private fun SectionTabs(
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                         )
-                        // Nur gesyncte Abschnitte haben einen WebDAV-Pfad.
-                        if (section.webdavPath != null) {
+                        if (synced) {
                             Spacer(Modifier.width(6.dp))
                             Text("☁", style = MaterialTheme.typography.labelSmall)
                         }
@@ -690,6 +741,58 @@ private fun formatLabel(page: Page): String {
     val bg = page.background ?: return format
     val source = bg.sourceName ?: return "$format · Vorlage"
     return bg.sourcePage?.let { "$format · $source, S. $it" } ?: "$format · $source"
+}
+
+/**
+ * Auswahl des Notizbuchs — die oberste Ebene, wie in OneNote. Anlegen,
+ * Umbenennen und Löschen wohnen im selben Menü; für eine eigene Leiste ist
+ * die Ebene zu selten in Gebrauch.
+ */
+@Composable
+private fun NotebookPicker(
+    revision: Int,
+    notebooks: List<Notebook>,
+    active: Notebook?,
+    onSelect: (Notebook) -> Unit,
+    onAdd: () -> Unit,
+    onRename: (Notebook) -> Unit,
+    onDelete: (Notebook) -> Unit,
+) {
+    @Suppress("UNUSED_EXPRESSION") revision
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(onClick = { open = true }) {
+            Text("📓 ${active?.name ?: "—"} ▾", maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        DropdownMenu(open, onDismissRequest = { open = false }) {
+            notebooks.forEach { nb ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (nb === active) "${nb.name}  ✓" else nb.name,
+                            fontWeight = if (nb === active) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    },
+                    onClick = { onSelect(nb); open = false },
+                )
+            }
+            HorizontalDivider()
+            DropdownMenuItem(
+                text = { Text("Neues Notizbuch …") },
+                onClick = { onAdd(); open = false },
+            )
+            active?.let { nb ->
+                DropdownMenuItem(
+                    text = { Text("„${nb.name}“ umbenennen …") },
+                    onClick = { onRename(nb); open = false },
+                )
+                DropdownMenuItem(
+                    text = { Text("„${nb.name}“ löschen …") },
+                    onClick = { onDelete(nb); open = false },
+                )
+            }
+        }
+    }
 }
 
 /**

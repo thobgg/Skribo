@@ -12,6 +12,7 @@ import com.inktest.EditTextBoxContent
 import com.inktest.ImageBox
 import com.inktest.LinkBox
 import com.inktest.MoveBox
+import com.inktest.Notebook
 import com.inktest.Page
 import com.inktest.PaperStyle
 import com.inktest.PositionedBox
@@ -62,10 +63,12 @@ class DocumentController(
         prefs?.activeSchoolYear = year
 
         val reloaded = repository.load()
-        document.sections.clear()
-        document.sections.addAll(reloaded.sections)
-        activeSection = document.sections.firstOrNull { it.id == activeSection?.id }
-            ?: document.sections.firstOrNull()
+        document.notebooks.clear()
+        document.notebooks.addAll(reloaded.notebooks)
+        activeNotebook = document.notebooks.firstOrNull { it.id == activeNotebook?.id }
+            ?: document.notebooks.firstOrNull()
+        activeSection = activeNotebook?.sections?.firstOrNull { it.id == activeSection?.id }
+            ?: activeNotebook?.sections?.firstOrNull()
         activePage = activeSection?.let { section ->
             section.pages.firstOrNull { it.id == activePage?.id } ?: section.pages.firstOrNull()
         }
@@ -73,9 +76,17 @@ class DocumentController(
     }
 
     // Beim Start dort weitermachen, wo zuletzt gearbeitet wurde.
+    var activeNotebook by mutableStateOf(
+        document.notebooks.firstOrNull { it.id == prefs?.activeNotebookId }
+            ?: document.notebooks.firstOrNull()
+    )
+        private set
+
     var activeSection by mutableStateOf(
-        document.sections.firstOrNull { it.id == prefs?.activeSectionId }
-            ?: document.sections.firstOrNull()
+        activeNotebook?.let { nb ->
+            nb.sections.firstOrNull { it.id == prefs?.activeSectionId }
+                ?: nb.sections.firstOrNull()
+        }
     )
         private set
 
@@ -89,6 +100,15 @@ class DocumentController(
 
     // ---------------- Auswahl ----------------
 
+    fun selectNotebook(notebook: Notebook) {
+        if (notebook === activeNotebook) return
+        activeNotebook = notebook
+        activeSection = notebook.sections.firstOrNull()
+        activePage = activeSection?.pages?.firstOrNull()
+        rememberSelection()
+        revision++
+    }
+
     fun selectSection(section: Section) {
         activeSection = section
         activePage = section.pages.firstOrNull()
@@ -101,19 +121,73 @@ class DocumentController(
     }
 
     private fun rememberSelection() {
+        prefs?.activeNotebookId = activeNotebook?.id
         prefs?.activeSectionId = activeSection?.id
         prefs?.activePageId = activePage?.id
     }
 
-    // ---------------- Abschnitte ----------------
+    // ---------------- Notizbücher ----------------
 
-    fun addSection(name: String) = edit {
-        val section = Section(name = name, color = Section.DEFAULT_COLOR)
-        section.addRootPage(Page(title = "Seite 1", paperStyle = PaperStyle.LINED))
-        document.sections.add(section)
+    fun addNotebook(name: String) = edit {
+        val nb = Notebook(name = name, folderName = uniqueFolder(name, document.notebooks.map { it.folderName }))
+        val section = newSection("Abschnitt", nb)
+        nb.sections.add(section)
+        document.notebooks.add(nb)
+        activeNotebook = nb
         activeSection = section
         activePage = section.pages.first()
         section.pages.forEach(repository::savePage)
+    }
+
+    /** Nur der Anzeigename ändert sich — der Server-Ordner bleibt (bewusst) stehen. */
+    fun renameNotebook(notebook: Notebook, name: String) = edit {
+        notebook.name = name
+    }
+
+    fun deleteNotebook(notebook: Notebook) = edit {
+        notebook.sections.flatMap { it.pages }.forEach(repository::deletePage)
+        document.notebooks.remove(notebook)
+        if (activeNotebook === notebook) {
+            activeNotebook = document.notebooks.firstOrNull()
+            activeSection = activeNotebook?.sections?.firstOrNull()
+            activePage = activeSection?.pages?.firstOrNull()
+        }
+    }
+
+    // ---------------- Abschnitte ----------------
+
+    fun addSection(name: String) {
+        val nb = activeNotebook ?: return
+        edit {
+            val section = newSection(name, nb)
+            nb.sections.add(section)
+            activeSection = section
+            activePage = section.pages.first()
+            section.pages.forEach(repository::savePage)
+        }
+    }
+
+    /**
+     * Neue Abschnitte gleichen sich von selbst ab — der Ordner ergibt sich aus
+     * Basis-Pfad, Notizbuch und Namen; niemand soll mehr Pfade tippen müssen.
+     */
+    private fun newSection(name: String, notebook: Notebook): Section {
+        val section = Section(
+            name = name,
+            color = Section.DEFAULT_COLOR,
+            syncEnabled = true,
+            folderName = uniqueFolder(name, notebook.sections.map { it.folderName }),
+        )
+        section.addRootPage(Page(title = "Seite 1", paperStyle = PaperStyle.LINED))
+        return section
+    }
+
+    private fun uniqueFolder(name: String, used: List<String?>): String {
+        val base = SkriboSync.safeSegment(name)
+        if (base !in used.filterNotNull()) return base
+        var i = 2
+        while ("$base $i" in used.filterNotNull()) i++
+        return "$base $i"
     }
 
     fun renameSection(section: Section, name: String) = edit {
@@ -121,17 +195,23 @@ class DocumentController(
     }
 
     fun deleteSection(section: Section) = edit {
+        val nb = document.notebookOf(section)
         section.pages.forEach(repository::deletePage)
-        document.sections.remove(section)
+        nb?.sections?.remove(section)
         if (activeSection === section) {
-            activeSection = document.sections.firstOrNull()
+            activeSection = activeNotebook?.sections?.firstOrNull()
             activePage = activeSection?.pages?.firstOrNull()
         }
     }
 
-    fun setSectionWebdavPath(section: Section, path: String) = edit {
-        // Leer bedeutet laut Schema: Abschnitt bleibt lokal, wird nicht gesynct.
-        section.webdavPath = path.trim().ifEmpty { null }
+    /**
+     * Schaltet den Abgleich eines Abschnitts an oder aus. Beim Ausschalten
+     * fällt auch ein fester Altbestands-Pfad weg — sonst gewönne er beim
+     * nächsten Einschalten wieder gegen die zentrale Basis.
+     */
+    fun setSectionSyncEnabled(section: Section, enabled: Boolean) = edit {
+        section.syncEnabled = enabled
+        if (!enabled) section.webdavPath = null
     }
 
     // ---------------- Seiten ----------------
@@ -332,24 +412,26 @@ class DocumentController(
     val webdavServer: String get() = prefs?.webdavServer.orEmpty()
     val webdavUsername: String get() = prefs?.webdavUsername.orEmpty()
     val webdavPassword: String get() = prefs?.webdavPassword.orEmpty()
+    val webdavBasePath: String get() = prefs?.webdavBasePath.orEmpty()
 
-    fun setWebdav(server: String, user: String, password: String) {
+    fun setWebdav(server: String, user: String, password: String, basePath: String) {
         prefs?.webdavServer = server
         prefs?.webdavUsername = user
         prefs?.webdavPassword = password
+        prefs?.webdavBasePath = basePath
         revision++
     }
 
-    private fun sync(server: String, user: String, password: String) = SkriboSync(
+    private fun sync(server: String, user: String, password: String, basePath: String) = SkriboSync(
         settings = {
-            SkriboSync.SyncConfig(server, user, password, schoolYear)
+            SkriboSync.SyncConfig(server, user, password, schoolYear, basePath)
         },
         assetRoot = repository.rootDir,
     )
 
-    /** Prüft die Verbindung; gibt `null` zurück, wenn alles stimmt. */
-    fun testConnection(server: String, user: String, password: String): String? =
-        runCatching { sync(server, user, password).testConnection() }
+    /** Prüft Verbindung **und** Schreibrecht auf der Basis; `null` heißt: alles gut. */
+    fun testConnection(server: String, user: String, password: String, basePath: String): String? =
+        runCatching { sync(server, user, password, basePath).testConnection() }
             .fold(onSuccess = { null }, onFailure = { it.message ?: "Unbekannter Fehler" })
 
     /**
@@ -359,7 +441,7 @@ class DocumentController(
      */
     fun push(): SkriboSync.SyncResult {
         repository.flush()
-        return sync(webdavServer, webdavUsername, webdavPassword).pushDocument(document)
+        return sync(webdavServer, webdavUsername, webdavPassword, webdavBasePath).pushDocument(document)
     }
 
     /**
@@ -387,13 +469,15 @@ class DocumentController(
      */
     fun pull(): SkriboSync.PullResult {
         repository.flush()
-        val result = sync(webdavServer, webdavUsername, webdavPassword)
+        val result = sync(webdavServer, webdavUsername, webdavPassword, webdavBasePath)
             .pullDocument(document) { page -> repository.savePage(page) }
         repository.saveDocumentStructure(document)
         repository.flush()
         // Die Auswahl kann auf eine Seite zeigen, die es so nicht mehr gibt.
-        activeSection = document.sections.firstOrNull { it.id == activeSection?.id }
-            ?: document.sections.firstOrNull()
+        activeNotebook = document.notebooks.firstOrNull { it.id == activeNotebook?.id }
+            ?: document.notebooks.firstOrNull()
+        activeSection = activeNotebook?.sections?.firstOrNull { it.id == activeSection?.id }
+            ?: activeNotebook?.sections?.firstOrNull()
         activePage = activeSection?.let { s ->
             s.pages.firstOrNull { it.id == activePage?.id } ?: s.pages.firstOrNull()
         }
