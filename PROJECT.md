@@ -249,6 +249,17 @@ produktionsreif.
       Offen: Umschalter am Board, Vorjahr als Vorlage übernehmen.
 - [ ] **M4 — WebDAV-Sync Board ↔ Server:** Push aus `shared/` härten, dann
       Pull + Merge-/Konfliktstrategie; Annotationen getrennt von der Basis
+  - [ ] **Fernerkundung (Befund 01.09.2026):** Der Pull holt nur Abschnitte,
+        die das Gerät schon kennt (Zuordnung über gleiche Ordnernamen unter
+        der Basis). Ein auf Gerät A angelegter Abschnitt erscheint auf
+        Gerät B erst, wenn man ihn dort gleichnamig anlegt. Der Abgleich
+        sollte neue Notizbücher/Abschnitte vom Server selbst entdecken.
+  - [x] **E2E bestätigt (01.09.2026, Tab S8 Ultra als Board-Ersatz):**
+        Auto-Abgleich Tablet → NAS → Desktop über die Basis-Struktur
+        `<Basis>/<Notizbuch>/<Abschnitt>/…` läuft. Stolperstein in der Praxis:
+        DuckDuckGos App-Tracking-Protection-VPN blockierte die DNS-Auflösung
+        der App („Unable to resolve host") — Skribo dort ausnehmen. Auf den
+        CTOUCH-Boards existiert das Problem nicht.
   - [x] **Sync-Fehler sichtbar machen (Befund 01.09.2026, erledigt am selben
         Tag):** Beide Clients zeigen Abgleich-Fehler jetzt als **kopierbaren
         Text im Dialog** (Desktop: SelectionContainer + Kopieren-Knopf; Board:
