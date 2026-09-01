@@ -72,8 +72,20 @@ Zweiter, unabhängiger Gewinn — von OneNote gar nicht gelöst:
 - **Keine laufende Einsicht ins Tafelbild von zuhause.** Im Kursnotizbuch
   konnten Schüler jederzeit nachsehen, was in der Stunde entstand. Das ist
   **bewusst kein Ziel**: Es erwies sich als kontraproduktiv, weil es
-  aufmerksames Mitarbeiten und Mitschreiben untergrub. Nicht später
-  „nachrüsten" — das Weglassen ist die Entscheidung.
+  aufmerksames Mitarbeiten und Mitschreiben untergrub.
+
+  > **Nachtrag 01.09.2026 — Schüler-Lesezugriff wird erwogen, ist aber
+  > unentschieden.** Die Domain `bgg-schule.de` ist dafür bereits reserviert.
+  > Priorität hat aber der Eigennutzen (Board-Client ohne Kontozwang, s. o.);
+  > die Schülerfrage wird erst danach entschieden. Durchdachte Optionen,
+  > falls es so weit kommt: **(a)** statischer PDF-Veröffentlichungsordner
+  > auf der eigenen NAS mit geheimem Pfad pro Kurs/Schuljahr, verteilt per
+  > QR-Code — kontenlos, gleiches Muster wie der eigene App-Store;
+  > **(b)** PDF-Ablage in SharePoint/Teams des Schul-Tenants — nutzt die
+  > vorhandenen MS-365-Schülerkonten, widerspricht aber der eigenen
+  > De-Clouding-Linie. In beiden Fällen: Veröffentlichung strikt getrennt
+  > vom Live-Sync-Baum, und bewusst steuern, *wann* Inhalte sichtbar werden
+  > (erst nach der Stunde) — die ursprüngliche Sorge bleibt gültig.
 - **Keine digitalen Schülerhefte mit Einsicht der Lehrkraft.** OneNote konnte
   das (Schüler schreiben, scannen, fotografieren hinein; Lehrkraft schaut
   überall rein), es wurde in der Praxis aber kaum genutzt. Der Aufwand stünde
