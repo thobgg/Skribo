@@ -485,9 +485,20 @@ class Document(val notebooks: MutableList<Notebook> = mutableListOf()) {
     companion object {
         fun default(): Document {
             val d = Document()
-            val s = Section(name = "Analysis", color = 0xFF4A90E2.toInt())
+            // syncEnabled von Anfang an: Auf einem frischen Gerät schrieb man
+            // sonst in den Standard-Abschnitt, und der Abgleich lief still mit
+            // null Abschnitten — sah aus wie Erfolg, gesendet wurde nie.
+            val s = Section(
+                name = "Analysis",
+                color = 0xFF4A90E2.toInt(),
+                syncEnabled = true,
+                folderName = "Analysis",
+            )
             s.pages.add(Page(title = "Seite 1", paperStyle = PaperStyle.LINED))
-            d.notebooks.add(Notebook(name = Notebook.DEFAULT_NAME).apply { sections.add(s) })
+            d.notebooks.add(
+                Notebook(name = Notebook.DEFAULT_NAME, folderName = Notebook.DEFAULT_NAME)
+                    .apply { sections.add(s) }
+            )
             return d
         }
     }

@@ -1291,7 +1291,17 @@ class MainActivity : AppCompatActivity() {
                         lastAutoErrors = emptyList()
                         updateSyncMenuLabel()
                         if (errors.isEmpty()) {
-                            Toast.makeText(this, summary, Toast.LENGTH_LONG).show()
+                            val anySynced = document.allSections()
+                                .any { it.syncEnabled || it.webdavPath != null }
+                            if (anySynced) {
+                                Toast.makeText(this, summary, Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(
+                                    this,
+                                    "Kein Abschnitt wird abgeglichen — Reiter lange drücken → „Abgleichen einschalten“",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                            }
                         } else {
                             // Fehler nie als flüchtigen Toast — sichtbar und kopierbar.
                             showSyncErrorDialog("Abgleich: ${errors.size} Fehler ($summary)", errors)

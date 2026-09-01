@@ -18,6 +18,15 @@ class DocumentStoreTest {
     }
 
     @Test
+    fun `standarddokument gleicht sich von anfang an ab`() {
+        // Sonst schreibt man auf einem frischen Gerät in den Standard-Abschnitt
+        // und der Abgleich läuft still mit null Abschnitten — sah aus wie Erfolg.
+        val section = Document.default().allSections().single()
+        assertTrue(section.syncEnabled, "Der Standard-Abschnitt muss abgleichen")
+        assertTrue(section.folderName != null, "Ordnername muss fest vergeben sein")
+    }
+
+    @Test
     fun `dokument und seite ueberleben einen speicher-lade-zyklus`() {
         val store = tempStore()
         val doc = Document.default()
