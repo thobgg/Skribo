@@ -337,7 +337,21 @@ class Section(
     val id: String = UUID.randomUUID().toString(),
     var name: String,
     var color: Int,
+    /**
+     * **Altbestand:** fester Server-Pfad dieses Abschnitts. Neue Abschnitte
+     * bekommen keinen mehr — ihr Ort ergibt sich aus Basis-Pfad (Einstellung),
+     * Notizbuch- und Abschnitts-Ordner. Ein gesetzter Pfad gewinnt aber
+     * weiterhin, damit bestehende Einrichtungen ohne Umzug weiterlaufen.
+     */
     var webdavPath: String? = null,
+    /** Ob dieser Abschnitt mit dem Server abgeglichen wird. */
+    var syncEnabled: Boolean = false,
+    /**
+     * Ordnername auf dem Server — einmal aus dem Namen abgeleitet und dann
+     * **fest**: Ein Umbenennen des Abschnitts verschiebt sonst den Ordner, und
+     * die Geräte fänden einander nicht mehr.
+     */
+    var folderName: String? = null,
     val pages: MutableList<Page> = mutableListOf(),
 ) {
     fun depthOf(page: Page): Int {
@@ -394,6 +408,8 @@ class Section(
         put("name", name)
         put("color", color)
         if (webdavPath != null) put("webdavPath", webdavPath)
+        if (syncEnabled) put("syncEnabled", true)
+        if (folderName != null) put("folderName", folderName)
         val ids = JSONArray()
         pages.forEach { ids.put(it.id) }
         put("pageIds", ids)
@@ -406,6 +422,8 @@ class Section(
                 name = j.optString("name", "Abschnitt"),
                 color = j.optInt("color", DEFAULT_COLOR),
                 webdavPath = if (j.has("webdavPath") && !j.isNull("webdavPath")) j.getString("webdavPath") else null,
+                syncEnabled = j.optBoolean("syncEnabled", false),
+                folderName = if (j.has("folderName") && !j.isNull("folderName")) j.getString("folderName") else null,
             )
             val ids = j.optJSONArray("pageIds") ?: return section
             for (i in 0 until ids.length()) {
@@ -418,13 +436,58 @@ class Section(
     }
 }
 
-class Document(val sections: MutableList<Section> = mutableListOf()) {
+/**
+ * Die oberste Ordnungsebene — wie ein Notizbuch in OneNote: Notizbücher
+ * enthalten Abschnitte, Abschnitte enthalten Seiten. Auf dem Server wird jedes
+ * Notizbuch zu einem Ordner unterhalb des Basis-Pfads.
+ */
+class Notebook(
+    val id: String = UUID.randomUUID().toString(),
+    var name: String,
+    /** Fester Server-Ordnername — wie [Section.folderName], aus demselben Grund. */
+    var folderName: String? = null,
+    val sections: MutableList<Section> = mutableListOf(),
+) {
+    fun toJson(): JSONObject = JSONObject().apply {
+        put("id", id)
+        put("name", name)
+        if (folderName != null) put("folderName", folderName)
+        put("sections", JSONArray().apply { sections.forEach { put(it.toJson()) } })
+    }
+
+    companion object {
+        const val DEFAULT_NAME = "Notizbuch"
+
+        fun fromJson(j: JSONObject, pageStore: Map<String, Page>): Notebook {
+            val nb = Notebook(
+                id = j.getString("id"),
+                name = j.optString("name", DEFAULT_NAME),
+                folderName = if (j.has("folderName") && !j.isNull("folderName")) j.getString("folderName") else null,
+            )
+            val secs = j.optJSONArray("sections") ?: return nb
+            for (i in 0 until secs.length()) {
+                nb.sections.add(Section.fromJson(secs.getJSONObject(i), pageStore))
+            }
+            return nb
+        }
+    }
+}
+
+class Document(val notebooks: MutableList<Notebook> = mutableListOf()) {
+
+    /** Alle Abschnitte über alle Notizbücher — für Läufe, denen die Ebene egal ist. */
+    fun allSections(): List<Section> = notebooks.flatMap { it.sections }
+
+    /** Das Notizbuch, das [section] enthält. */
+    fun notebookOf(section: Section): Notebook? =
+        notebooks.firstOrNull { nb -> nb.sections.any { it === section } }
+
     companion object {
         fun default(): Document {
             val d = Document()
             val s = Section(name = "Analysis", color = 0xFF4A90E2.toInt())
             s.pages.add(Page(title = "Seite 1", paperStyle = PaperStyle.LINED))
-            d.sections.add(s)
+            d.notebooks.add(Notebook(name = Notebook.DEFAULT_NAME).apply { sections.add(s) })
             return d
         }
     }

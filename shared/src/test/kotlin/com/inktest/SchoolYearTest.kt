@@ -42,7 +42,7 @@ class AnnotationLayerTest {
     fun `neues schuljahr startet mit leerer flaeche auf derselben vorlage`() {
         val s = store()
         val doc = Document.default()
-        val page = doc.sections.first().pages.first()
+        val page = doc.allSections().first().pages.first()
         page.title = "Arbeitsblatt"
         page.format = PageFormat.A4_PORTRAIT
         page.background = PageBackground("assets/vorlage.png", "Arbeitsblatt.pdf", 1)
@@ -50,7 +50,7 @@ class AnnotationLayerTest {
         s.writePage(page, "25-26")
         s.writeDocumentStructure(doc)
 
-        val neuesJahr = s.load("26-27").sections.first().pages.first()
+        val neuesJahr = s.load("26-27").allSections().first().pages.first()
 
         // Vorlage steht, Handschrift des Vorjahres ist weg.
         assertEquals("Arbeitsblatt", neuesJahr.title)
@@ -63,20 +63,20 @@ class AnnotationLayerTest {
     fun `das vorjahr bleibt nachschlagbar`() {
         val s = store()
         val doc = Document.default()
-        val page = doc.sections.first().pages.first()
+        val page = doc.allSections().first().pages.first()
         page.addStroke(strokeAt(10f))
         s.writePage(page, "25-26")
         s.writeDocumentStructure(doc)
 
         // Im neuen Jahr etwas anderes schreiben …
-        val neu = s.load("26-27").sections.first().pages.first()
+        val neu = s.load("26-27").allSections().first().pages.first()
         neu.addStroke(strokeAt(50f))
         neu.addStroke(strokeAt(60f))
         s.writePage(neu, "26-27")
 
         // … beide Jahre existieren nebeneinander.
-        assertEquals(1, s.load("25-26").sections.first().pages.first().strokes.size)
-        assertEquals(2, s.load("26-27").sections.first().pages.first().strokes.size)
+        assertEquals(1, s.load("25-26").allSections().first().pages.first().strokes.size)
+        assertEquals(2, s.load("26-27").allSections().first().pages.first().strokes.size)
         assertEquals(listOf("26-27", "25-26"), s.listYears())
     }
 
@@ -96,13 +96,13 @@ class AnnotationLayerTest {
     fun `dokument aus der zeit vor den jahresebenen behaelt seine striche`() {
         val s = store()
         val doc = Document.default()
-        val page = doc.sections.first().pages.first()
+        val page = doc.allSections().first().pages.first()
         page.addStroke(strokeAt(10f))
         // So sah es früher aus: alles in einer Datei, keine annotations/-Ablage.
         s.writeDocumentStructure(doc)
         java.io.File(s.rootDir, "pages/${page.id}.json").writeText(page.toJson().toString())
 
-        val geladen = s.load("25-26").sections.first().pages.first()
+        val geladen = s.load("25-26").allSections().first().pages.first()
 
         assertEquals(1, geladen.strokes.size, "Alte Striche dürfen nicht verlorengehen")
 
@@ -115,7 +115,7 @@ class AnnotationLayerTest {
     fun `seite loeschen raeumt alle jahresebenen mit ab`() {
         val s = store()
         val doc = Document.default()
-        val page = doc.sections.first().pages.first()
+        val page = doc.allSections().first().pages.first()
         page.addStroke(strokeAt(1f))
         s.writePage(page, "24-25")
         s.writePage(page, "25-26")
@@ -131,12 +131,12 @@ class AnnotationLayerTest {
     fun `nach dem jahreswechsel gilt die historie des vorjahres nicht mehr`() {
         val s = store()
         val doc = Document.default()
-        val page = doc.sections.first().pages.first()
+        val page = doc.allSections().first().pages.first()
         page.addStroke(strokeAt(10f))
         s.writePage(page, "25-26")
         s.writeDocumentStructure(doc)
 
-        val neu = s.load("26-27").sections.first().pages.first()
+        val neu = s.load("26-27").allSections().first().pages.first()
 
         // Sonst würde ein Undo Striche des Vorjahres zurückholen.
         assertTrue(!neu.canUndo(), "Die Historie muss beim Jahreswechsel zurückgesetzt sein")

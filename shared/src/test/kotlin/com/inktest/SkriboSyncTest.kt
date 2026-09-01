@@ -71,6 +71,57 @@ class PropfindParsingTest {
     }
 }
 
+class RemotePathTest {
+
+    private fun sync() = SkriboSync({ cfg() })
+
+    private fun cfg(basePath: String = "Skribo") = SkriboSync.SyncConfig(
+        server = "https://nas.example", username = "u", password = "p",
+        schoolYear = "26-27", basePath = basePath,
+    )
+
+    private val notebook = Notebook(name = "Mathematik", folderName = "Mathematik")
+
+    @Test
+    fun `pfad ergibt sich aus basis notizbuch und abschnitt`() {
+        val s = Section(name = "Analysis 12", color = 0, syncEnabled = true, folderName = "Analysis 12")
+
+        val path = sync().remotePathOf(cfg(), notebook, s) { throw AssertionError(it) }
+
+        assertEquals("Skribo/Mathematik/Analysis 12", path)
+    }
+
+    @Test
+    fun `fester altbestands-pfad gewinnt`() {
+        val s = Section(
+            name = "Analysis 12", color = 0, syncEnabled = true,
+            folderName = "Analysis 12", webdavPath = "home/skribo-test/Analysis12",
+        )
+
+        val path = sync().remotePathOf(cfg(), notebook, s) { throw AssertionError(it) }
+
+        assertEquals("home/skribo-test/Analysis12", path)
+    }
+
+    @Test
+    fun `ausgeschalteter abgleich bleibt lokal`() {
+        val s = Section(name = "Entwurf", color = 0, syncEnabled = false)
+
+        assertEquals(null, sync().remotePathOf(cfg(), notebook, s) { throw AssertionError(it) })
+    }
+
+    @Test
+    fun `fehlender basis-pfad wird gemeldet statt still uebersprungen`() {
+        val s = Section(name = "Analysis 12", color = 0, syncEnabled = true)
+        val errors = mutableListOf<String>()
+
+        val path = sync().remotePathOf(cfg(basePath = ""), notebook, s) { errors += it }
+
+        assertEquals(null, path)
+        assertTrue(errors.single().contains("Basis-Ordner"), "Der Grund muss beim Nutzer ankommen")
+    }
+}
+
 class BaseJsonRoundTripTest {
 
     @Test

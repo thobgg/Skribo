@@ -68,21 +68,63 @@ class DocumentStore(val rootDir: File) {
                     .onFailure { SkriboLog.w(TAG, "page ${f.name} invalid: $it") }
             }
             val doc = Document()
-            val secs = docJson.optJSONArray("sections") ?: JSONArray()
-            for (i in 0 until secs.length()) {
-                doc.sections.add(Section.fromJson(secs.getJSONObject(i), pageStore))
+            val notebooks = docJson.optJSONArray("notebooks")
+            if (notebooks != null) {
+                for (i in 0 until notebooks.length()) {
+                    doc.notebooks.add(Notebook.fromJson(notebooks.getJSONObject(i), pageStore))
+                }
+            } else {
+                // Altes Format: Abschnitte lagen direkt im Dokument. Sie wandern
+                // in ein Standard-Notizbuch; beim nächsten Speichern schreibt
+                // sich das neue Format von selbst.
+                val nb = Notebook(name = Notebook.DEFAULT_NAME)
+                val secs = docJson.optJSONArray("sections") ?: JSONArray()
+                for (i in 0 until secs.length()) {
+                    nb.sections.add(Section.fromJson(secs.getJSONObject(i), pageStore))
+                }
+                if (nb.sections.isNotEmpty()) doc.notebooks.add(nb)
             }
-            if (doc.sections.isEmpty()) Document.default() else doc
+            migrate(doc)
+            if (doc.allSections().isEmpty()) Document.default() else doc
         } catch (t: Throwable) {
             SkriboLog.w(TAG, "load failed, returning default: $t")
             Document.default()
         }
     }
 
+    /**
+     * Zieht Altbestände auf den heutigen Stand: Abschnitte mit festem
+     * WebDAV-Pfad gelten als „abgleichen an", und fehlende Server-Ordnernamen
+     * werden einmalig aus den Namen abgeleitet — eindeutig unter ihren
+     * Geschwistern, danach fest (siehe [Section.folderName]).
+     */
+    private fun migrate(doc: Document) {
+        val usedNotebookFolders = mutableSetOf<String>()
+        doc.notebooks.forEach { nb ->
+            if (nb.folderName == null) {
+                nb.folderName = uniqueFolder(SkriboSync.safeSegment(nb.name), nb.id, usedNotebookFolders)
+            } else {
+                usedNotebookFolders.add(nb.folderName!!)
+            }
+            val usedSectionFolders = mutableSetOf<String>()
+            nb.sections.forEach { s ->
+                if (s.webdavPath != null) s.syncEnabled = true
+                if (s.folderName == null) {
+                    s.folderName = uniqueFolder(SkriboSync.safeSegment(s.name), s.id, usedSectionFolders)
+                } else {
+                    usedSectionFolders.add(s.folderName!!)
+                }
+            }
+        }
+    }
+
+    private fun uniqueFolder(base: String, id: String, used: MutableSet<String>): String =
+        if (used.add(base)) base else "$base (${id.take(6)})".also { used.add(it) }
+
     fun writeDocumentStructure(doc: Document) {
         val json = JSONObject().apply {
-            put("sections", JSONArray().apply {
-                doc.sections.forEach { put(it.toJson()) }
+            put("notebooks", JSONArray().apply {
+                doc.notebooks.forEach { put(it.toJson()) }
             })
         }
         writeAtomic(documentFile, json.toString())

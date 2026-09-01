@@ -46,7 +46,42 @@ class SkriboSync(
         val username: String,
         val password: String,
         val schoolYear: String,
+        /**
+         * Ordner auf dem Server, unter dem **alle** Notizbücher liegen — einmal
+         * zentral eingestellt statt je Abschnitt eingetippt. Muss innerhalb
+         * einer bestehenden Freigabe liegen (z. B. „home/skribo" oder
+         * „Skribo"), sonst verweigert eine Synology das Anlegen (405).
+         */
+        val basePath: String = "",
     )
+
+    /**
+     * Wohin ein Abschnitt auf dem Server gehört — oder `null`, wenn er lokal
+     * bleibt. Ein fester [Section.webdavPath] (Altbestand) gewinnt; sonst
+     * ergibt sich der Ort aus Basis-Pfad, Notizbuch- und Abschnitts-Ordner.
+     * Fehlt der Basis-Pfad trotz eingeschaltetem Abgleich, meldet [onError]
+     * das — stummes Überspringen sähe wie Erfolg aus.
+     */
+    internal fun remotePathOf(
+        cfg: SyncConfig,
+        notebook: Notebook,
+        section: Section,
+        onError: (String) -> Unit,
+    ): String? {
+        section.webdavPath?.trim('/')?.takeIf { it.isNotEmpty() }?.let { return it }
+        if (!section.syncEnabled) return null
+        val base = cfg.basePath.trim('/')
+        if (base.isEmpty()) {
+            onError(
+                "${section.name}: Abgleich ist eingeschaltet, aber in den " +
+                    "Einstellungen fehlt der Basis-Ordner auf dem Server."
+            )
+            return null
+        }
+        val nbFolder = notebook.folderName ?: safeSegment(notebook.name)
+        val secFolder = section.folderName ?: safeSegment(section.name)
+        return "$base/$nbFolder/$secFolder"
+    }
 
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -55,9 +90,13 @@ class SkriboSync(
         .build()
 
     /**
-     * Sanity-checks the WebDAV server reachability and the configured credentials by
-     * doing a single PROPFIND on the root. Throws IOException with a user-friendly
-     * message on failure; returns silently on success.
+     * Prüft Erreichbarkeit und Zugangsdaten (PROPFIND auf die Wurzel) — und,
+     * wenn ein Basis-Pfad gesetzt ist, ob dort auch **geschrieben** werden
+     * darf: Probeordner anlegen, wieder löschen. Ohne diese Schreibprobe hieß
+     * „Test grün" nur „Server da" — der erste echte Abgleich konnte trotzdem
+     * an einem 405 auf der Freigabe-Ebene scheitern, unsichtbar.
+     * Wirft [IOException] mit verständlicher Meldung; bei Erfolg kehrt sie
+     * still zurück.
      */
     @Throws(IOException::class)
     fun testConnection() {
@@ -83,6 +122,9 @@ class SkriboSync(
                     else -> throw IOException("Unerwartete Antwort: HTTP ${resp.code}")
                 }
             }
+            cfg.basePath.trim('/').takeIf { it.isNotEmpty() }?.let { base ->
+                testWritable(server, auth, base)
+            }
         } catch (e: java.net.UnknownHostException) {
             throw IOException("Server unbekannt — DNS-Auflösung von $server fehlgeschlagen")
         } catch (e: java.net.SocketTimeoutException) {
@@ -90,6 +132,55 @@ class SkriboSync(
         } catch (e: javax.net.ssl.SSLException) {
             throw IOException("Zertifikat-Problem: ${e.message}")
         }
+    }
+
+    /** Legt unter [base] einen Probeordner an und räumt ihn wieder weg. */
+    private fun testWritable(server: String, auth: String, base: String) {
+        ensureDirectory(server, auth, base)
+        val probe = "$base/.skribo-schreibprobe"
+        val mkcol = Request.Builder()
+            .url("$server/${urlEncodePath(probe)}/")
+            .header("Authorization", auth)
+            .method("MKCOL", null)
+            .build()
+        client.newCall(mkcol).execute().use { resp ->
+            when (resp.code) {
+                201, 405 -> { /* angelegt bzw. von der letzten Probe übrig — beides beweist nichts Schlechtes */ }
+                403 -> throw IOException(
+                    "Basis-Ordner „$base“ ist nicht beschreibbar (403) — " +
+                        "hat der Benutzer dort Schreibrecht?"
+                )
+                409 -> throw IOException(
+                    "Basis-Ordner „$base“ lässt sich nicht anlegen (409) — " +
+                        "liegt er innerhalb einer bestehenden Freigabe?"
+                )
+                else -> throw IOException("Schreibprobe in „$base“ → HTTP ${resp.code}")
+            }
+            // Ein 405 hier kann auch „darf nicht" heißen (Freigabe-Ebene) —
+            // das unterscheidet erst der Blick, ob der Ordner nun existiert.
+            if (resp.code == 405 && !directoryExists(server, auth, probe)) {
+                throw IOException(explain405(probe))
+            }
+        }
+        val delete = Request.Builder()
+            .url("$server/${urlEncodePath(probe)}/")
+            .header("Authorization", auth)
+            .delete()
+            .build()
+        // Aufräumen ist Kür: Bleibt der Probeordner stehen, stört er nicht.
+        runCatching { client.newCall(delete).execute().close() }
+    }
+
+    private fun directoryExists(server: String, auth: String, path: String): Boolean {
+        val req = Request.Builder()
+            .url("$server/${urlEncodePath(path)}/")
+            .header("Authorization", auth)
+            .header("Depth", "0")
+            .method("PROPFIND", null)
+            .build()
+        return runCatching {
+            client.newCall(req).execute().use { it.code == 200 || it.code == 207 }
+        }.getOrDefault(false)
     }
 
     @Throws(IOException::class)
@@ -104,9 +195,9 @@ class SkriboSync(
         var pageCount = 0
         val errors = mutableListOf<String>()
 
-        for (section in doc.sections) {
-            val sectionPath = section.webdavPath?.trim('/')
-            if (sectionPath.isNullOrEmpty()) continue  // section without path is local-only
+        for (notebook in doc.notebooks) for (section in notebook.sections) {
+            val sectionPath = remotePathOf(cfg, notebook, section) { errors += it }
+                ?: continue  // Abschnitt ohne Ort bleibt lokal
 
             // Ordnernamen kommen aus den Titeln — die sind aber nicht eindeutig.
             // Zwei Seiten „Übung" landeten sonst im selben Ordner und
@@ -273,9 +364,9 @@ class SkriboSync(
         var updated = 0
         val errors = mutableListOf<String>()
 
-        for (section in doc.sections) {
-            val sectionPath = section.webdavPath?.trim('/')
-            if (sectionPath.isNullOrEmpty()) continue
+        for (notebook in doc.notebooks) for (section in notebook.sections) {
+            val sectionPath = remotePathOf(cfg, notebook, section) { errors += it }
+                ?: continue
             val pageDirs = runCatching { listDirectories(server, auth, sectionPath) }
                 .getOrElse {
                     errors += "${section.name}: ${it.message}"
@@ -501,7 +592,7 @@ class SkriboSync(
          * zweiten an. Datumsangaben in dieser Schreibweise sind im Unterricht die
          * Regel, nicht die Ausnahme.
          */
-            internal fun safeSegment(title: String): String {
+            fun safeSegment(title: String): String {
             val cleaned = title.trim()
                 .map { if (it in ILLEGAL_IN_NAMES || it.code < 32) '-' else it }
                 .joinToString("")
