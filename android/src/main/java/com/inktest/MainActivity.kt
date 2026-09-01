@@ -70,8 +70,24 @@ class MainActivity : AppCompatActivity() {
     private var dockedIndex: Int = -1
     private var dockedParams: ViewGroup.LayoutParams? = null
 
+    private var currentNotebook: Notebook? = null
     private var currentSection: Section? = null
     private var currentPage: Page? = null
+
+    /**
+     * Das aktive Notizbuch — stellt sicher, dass immer eines existiert. Ein
+     * Dokument ganz ohne Notizbuch gäbe es nur nach Handeingriffen in die
+     * Ablage; dann wird stillschweigend eines angelegt statt zu stürzen.
+     */
+    private fun activeNotebook(): Notebook {
+        currentNotebook?.takeIf { it in document.notebooks }?.let { return it }
+        val nb = document.notebooks.firstOrNull { it.id == prefs.activeNotebookId }
+            ?: document.notebooks.firstOrNull()
+            ?: Notebook(name = Notebook.DEFAULT_NAME).also { document.notebooks.add(it) }
+        currentNotebook = nb
+        prefs.activeNotebookId = nb.id
+        return nb
+    }
 
     private var pendingImagePos: Pair<Float, Float>? = null
     private val pickImageLauncher = registerForActivityResult(
@@ -214,8 +230,9 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Navigation ----------------
 
     private fun activateInitial() {
-        val sec = document.sections.firstOrNull { it.id == prefs.activeSectionId }
-            ?: document.sections.firstOrNull()
+        val nb = activeNotebook()
+        val sec = nb.sections.firstOrNull { it.id == prefs.activeSectionId }
+            ?: nb.sections.firstOrNull()
         currentSection = sec
         val page = sec?.pages?.firstOrNull { it.id == prefs.activePageId }
             ?: sec?.pages?.firstOrNull()
@@ -255,10 +272,111 @@ class MainActivity : AppCompatActivity() {
     private fun rebuildSectionTabs() {
         sectionTabsContainer.removeAllViews()
         val density = resources.displayMetrics.density
+        // Das Notizbuch steht als erster „Reiter" vor seinen Abschnitten —
+        // die oberste Ebene, wie in OneNote.
+        sectionTabsContainer.addView(buildNotebookTab(density))
         val activeId = currentSection?.id
-        for (section in document.sections) {
+        for (section in activeNotebook().sections) {
             sectionTabsContainer.addView(buildSectionTab(section, section.id == activeId, density))
         }
+    }
+
+    private fun buildNotebookTab(density: Float): View = TextView(this).apply {
+        text = "📓 ${activeNotebook().name} ▾"
+        textSize = 13f
+        setTypeface(null, Typeface.BOLD)
+        setTextColor(ContextCompat.getColor(this@MainActivity, R.color.nav_text))
+        gravity = Gravity.CENTER_VERTICAL
+        val hPad = (14 * density).toInt()
+        setPadding(hPad, 0, hPad, 0)
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
+        setOnClickListener { showNotebookMenu() }
+    }
+
+    private fun showNotebookMenu() {
+        val names = document.notebooks.map {
+            if (it === currentNotebook) "${it.name}  ✓" else it.name
+        } + listOf("Neues Notizbuch …", "Notizbuch umbenennen …")
+        AlertDialog.Builder(this)
+            .setTitle("Notizbuch")
+            .setItems(names.toTypedArray()) { _, which ->
+                when {
+                    which < document.notebooks.size -> switchToNotebook(document.notebooks[which])
+                    which == document.notebooks.size -> showNewNotebookDialog()
+                    else -> showRenameNotebookDialog(activeNotebook())
+                }
+            }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
+    }
+
+    private fun switchToNotebook(notebook: Notebook) {
+        if (notebook === currentNotebook) return
+        currentPage?.let { repository.savePage(it) }
+        currentNotebook = notebook
+        prefs.activeNotebookId = notebook.id
+        val section = notebook.sections.firstOrNull()
+        currentSection = section
+        prefs.activeSectionId = section?.id
+        val page = section?.pages?.firstOrNull()
+        currentPage = page
+        inkView.page = page
+        prefs.activePageId = page?.id
+        updatePaperButton()
+        rebuildSectionTabs()
+        rebuildPageList()
+    }
+
+    private fun showNewNotebookDialog() {
+        val edit = EditText(this).apply {
+            setText(Notebook.DEFAULT_NAME)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            selectAll()
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Neues Notizbuch")
+            .setView(edit)
+            .setPositiveButton(R.string.dialog_ok) { _, _ ->
+                val name = edit.text.toString().trim()
+                if (name.isEmpty()) return@setPositiveButton
+                val nb = Notebook(
+                    name = name,
+                    folderName = uniqueFolderName(name, document.notebooks.map { it.folderName }),
+                )
+                val section = newSection(getString(R.string.default_section_name), nb)
+                nb.sections.add(section)
+                document.notebooks.add(nb)
+                section.pages.forEach { repository.savePage(it) }
+                repository.saveDocumentStructure(document)
+                switchToNotebook(nb)
+            }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
+    }
+
+    private fun showRenameNotebookDialog(notebook: Notebook) {
+        val edit = EditText(this).apply {
+            setText(notebook.name)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            selectAll()
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Notizbuch umbenennen")
+            .setView(edit)
+            .setPositiveButton(R.string.dialog_ok) { _, _ ->
+                val name = edit.text.toString().trim()
+                if (name.isNotEmpty()) {
+                    // Nur der Anzeigename — der Server-Ordner bleibt stehen.
+                    notebook.name = name
+                    repository.saveDocumentStructure(document)
+                    rebuildSectionTabs()
+                }
+            }
+            .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
     }
 
     private fun buildSectionTab(section: Section, isActive: Boolean, density: Float): View {
@@ -968,10 +1086,16 @@ class MainActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
             setText(prefs.webdavPassword)
         }
+        val baseEdit = EditText(this).apply {
+            hint = "z.B. home/skribo — darunter liegen die Notizbücher"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setText(prefs.webdavBasePath)
+        }
         listOf(
             "Server-URL" to urlEdit,
             "Benutzername" to userEdit,
             "Passwort" to pwEdit,
+            "Basis-Ordner" to baseEdit,
         ).forEach { (label, edit) ->
             container.addView(TextView(this).apply { text = label; setPadding(0, pad / 2, 0, 0) })
             container.addView(edit)
@@ -983,21 +1107,52 @@ class MainActivity : AppCompatActivity() {
                 prefs.webdavServer = urlEdit.text.toString().trim().trimEnd('/')
                 prefs.webdavUsername = userEdit.text.toString().trim()
                 prefs.webdavPassword = pwEdit.text.toString()
+                prefs.webdavBasePath = baseEdit.text.toString()
                 Toast.makeText(this, "Verbindung wird getestet …", Toast.LENGTH_SHORT).show()
                 Thread {
                     try {
+                        // Prüft seit dem Basis-Ordner auch das Schreiben dort —
+                        // „Test grün" ohne Schreibprobe hat einmal einen komplett
+                        // toten Sync kaschiert.
                         SkriboSync(prefs::syncConfig).testConnection()
                         runOnUiThread {
-                            Toast.makeText(this, "✓ Verbindung OK", Toast.LENGTH_LONG).show()
+                            val note = if (prefs.webdavBasePath.isBlank())
+                                "✓ Verbindung OK — ohne Basis-Ordner wird aber nichts abgeglichen"
+                            else "✓ Verbindung OK, Basis-Ordner beschreibbar"
+                            Toast.makeText(this, note, Toast.LENGTH_LONG).show()
                         }
                     } catch (e: Exception) {
-                        runOnUiThread {
-                            Toast.makeText(this, "✗ ${e.message}", Toast.LENGTH_LONG).show()
-                        }
+                        runOnUiThread { showSyncErrorDialog("Verbindungstest fehlgeschlagen", listOf(e.message ?: e.toString())) }
                     }
                 }.start()
             }
             .setNegativeButton(R.string.dialog_cancel, null)
+            .show()
+    }
+
+    /**
+     * Fehler mit vollem, **kopierbarem** Wortlaut — ein Toast verschwindet und
+     * lässt sich nicht abschreiben; genau daran ist eine Fehlersuche schon
+     * einmal gescheitert.
+     */
+    private fun showSyncErrorDialog(title: String, errors: List<String>) {
+        val pad = (16 * resources.displayMetrics.density).toInt()
+        val text = TextView(this).apply {
+            text = errors.joinToString("\n\n")
+            setTextIsSelectable(true)
+            setPadding(pad, pad / 2, pad, pad / 2)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(android.widget.ScrollView(this).apply { addView(text) })
+            .setPositiveButton(R.string.dialog_ok, null)
+            .setNeutralButton("Kopieren") { _, _ ->
+                val cm = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                cm.setPrimaryClip(
+                    android.content.ClipData.newPlainText("Skribo-Fehler", errors.joinToString("\n"))
+                )
+                Toast.makeText(this, "In die Zwischenablage kopiert", Toast.LENGTH_SHORT).show()
+            }
             .show()
     }
 
@@ -1036,6 +1191,7 @@ class MainActivity : AppCompatActivity() {
         prefs.activeSchoolYear = year
         repository.year = year
         document = repository.load()
+        currentNotebook = null
         currentSection = null
         currentPage = null
         activateInitial()
@@ -1064,22 +1220,23 @@ class MainActivity : AppCompatActivity() {
                 repository.saveDocumentStructure(document)
                 repository.flush()
                 runOnUiThread {
+                    currentNotebook = null
                     currentSection = null
                     currentPage = null
                     activateInitial()
                     val errors = push.errors + pull.errors
-                    val msg = buildString {
-                        append("${push.pageCount} gesendet · ${pull.added} neu · ${pull.updated} aktualisiert")
-                        if (errors.isNotEmpty()) {
-                            append("\n${errors.size} Fehler:\n")
-                            append(errors.take(3).joinToString("\n"))
-                        }
+                    val summary =
+                        "${push.pageCount} gesendet · ${pull.added} neu · ${pull.updated} aktualisiert"
+                    if (errors.isEmpty()) {
+                        Toast.makeText(this, summary, Toast.LENGTH_LONG).show()
+                    } else {
+                        // Fehler nie als flüchtigen Toast — sichtbar und kopierbar.
+                        showSyncErrorDialog("Abgleich: ${errors.size} Fehler ($summary)", errors)
                     }
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    Toast.makeText(this, "Sync fehlgeschlagen: ${e.message}", Toast.LENGTH_LONG).show()
+                    showSyncErrorDialog("Abgleich fehlgeschlagen", listOf(e.message ?: e.toString()))
                 }
             }
         }.start()
@@ -1096,22 +1253,44 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Navigation actions ----------------
 
     private fun addSection() {
-        val s = Section(
-            name = getString(R.string.default_section_name),
-            color = nextSectionColor(),
-        )
-        val firstPage = Page(
-            title = getString(R.string.default_page_name),
-            paperStyle = PaperStyle.LINED,
-        )
-        s.pages.add(firstPage)
-        document.sections.add(s)
-        repository.savePage(firstPage)
+        val nb = activeNotebook()
+        val s = newSection(getString(R.string.default_section_name), nb)
+        nb.sections.add(s)
+        s.pages.forEach { repository.savePage(it) }
         repository.saveDocumentStructure(document)
         switchToSection(s)
     }
 
-    private fun nextSectionColor(): Int {
+    /**
+     * Neue Abschnitte gleichen sich von selbst ab — der Server-Ordner ergibt
+     * sich aus Basis-Pfad, Notizbuch und Namen; Pfade tippt niemand mehr.
+     */
+    private fun newSection(name: String, notebook: Notebook): Section {
+        val s = Section(
+            name = name,
+            color = nextSectionColor(notebook),
+            syncEnabled = true,
+            folderName = uniqueFolderName(name, notebook.sections.map { it.folderName }),
+        )
+        s.pages.add(
+            Page(
+                title = getString(R.string.default_page_name),
+                paperStyle = PaperStyle.LINED,
+            )
+        )
+        return s
+    }
+
+    private fun uniqueFolderName(name: String, used: List<String?>): String {
+        val taken = used.filterNotNull()
+        val base = SkriboSync.safeSegment(name)
+        if (base !in taken) return base
+        var i = 2
+        while ("$base $i" in taken) i++
+        return "$base $i"
+    }
+
+    private fun nextSectionColor(notebook: Notebook): Int {
         val palette = intArrayOf(
             0xFF4A90E2.toInt(),
             0xFFE0A82E.toInt(),
@@ -1121,7 +1300,7 @@ class MainActivity : AppCompatActivity() {
             0xFF0EA5E9.toInt(),
             0xFFF48120.toInt(),
         )
-        val used = document.sections.map { it.color }.toSet()
+        val used = notebook.sections.map { it.color }.toSet()
         return palette.firstOrNull { it !in used } ?: palette.random()
     }
 
@@ -1344,35 +1523,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSectionMenu(section: Section) {
+        val synced = section.syncEnabled || section.webdavPath != null
+        val syncLabel = if (synced) "Abgleichen ausschalten" else "Abgleichen einschalten"
         AlertDialog.Builder(this)
             .setTitle(section.name)
-            .setItems(arrayOf("Umbenennen", "WebDAV-Pfad…", "Löschen")) { _, which ->
+            .setItems(arrayOf("Umbenennen", syncLabel, "Löschen")) { _, which ->
                 when (which) {
                     0 -> showRenameSectionDialog(section)
-                    1 -> showWebdavPathDialog(section)
+                    1 -> toggleSectionSync(section, !synced)
                     2 -> confirmDeleteSection(section)
                 }
             }
             .show()
     }
 
-    private fun showWebdavPathDialog(section: Section) {
-        val edit = EditText(this).apply {
-            setText(section.webdavPath ?: "")
-            inputType = InputType.TYPE_CLASS_TEXT
-            hint = "z.B. Mathematik/Sek.I/Mathe9"
-        }
-        AlertDialog.Builder(this)
-            .setTitle("WebDAV-Pfad für \"${section.name}\"")
-            .setMessage("Pfad innerhalb des WebDAV-Roots, ohne führenden / und ohne /skribo am Ende. Leer lassen = kein Sync für diese Section.")
-            .setView(edit)
-            .setPositiveButton(R.string.dialog_ok) { _, _ ->
-                val path = edit.text.toString().trim().trim('/')
-                section.webdavPath = if (path.isEmpty()) null else path
-                repository.saveDocumentStructure(document)
-            }
-            .setNegativeButton(R.string.dialog_cancel, null)
-            .show()
+    private fun toggleSectionSync(section: Section, enabled: Boolean) {
+        section.syncEnabled = enabled
+        // Beim Ausschalten fällt auch ein fester Altbestands-Pfad weg — sonst
+        // gewönne er beim Wiedereinschalten gegen die zentrale Basis.
+        if (!enabled) section.webdavPath = null
+        repository.saveDocumentStructure(document)
+        Toast.makeText(
+            this,
+            if (enabled) "„${section.name}“ wird abgeglichen" else "„${section.name}“ bleibt lokal",
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 
     private fun showRenameSectionDialog(section: Section) {
@@ -1401,15 +1576,16 @@ class MainActivity : AppCompatActivity() {
             .setTitle("Abschnitt löschen?")
             .setMessage("\"${section.name}\" und alle enthaltenen Seiten werden entfernt.")
             .setPositiveButton(R.string.dialog_delete) { _, _ ->
+                val nb = activeNotebook()
                 section.pages.forEach { repository.deletePage(it) }
-                document.sections.remove(section)
-                if (document.sections.isEmpty()) {
-                    val d = Document.default()
-                    document.sections.addAll(d.sections)
-                    d.sections.forEach { s -> s.pages.forEach { repository.savePage(it) } }
+                nb.sections.remove(section)
+                if (nb.sections.isEmpty()) {
+                    val s = newSection(getString(R.string.default_section_name), nb)
+                    nb.sections.add(s)
+                    s.pages.forEach { repository.savePage(it) }
                 }
                 repository.saveDocumentStructure(document)
-                val nextSection = document.sections.first()
+                val nextSection = nb.sections.first()
                 currentSection = nextSection
                 prefs.activeSectionId = nextSection.id
                 val nextPage = nextSection.pages.firstOrNull()

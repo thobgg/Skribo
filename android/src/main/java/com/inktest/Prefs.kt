@@ -91,6 +91,10 @@ class Prefs(context: Context) {
         get() = sp.getBoolean(KEY_TUNING_VIS, false)
         set(v) = sp.edit { putBoolean(KEY_TUNING_VIS, v) }
 
+    var activeNotebookId: String?
+        get() = sp.getString(KEY_ACTIVE_NOTEBOOK, null)
+        set(v) = sp.edit { if (v == null) remove(KEY_ACTIVE_NOTEBOOK) else putString(KEY_ACTIVE_NOTEBOOK, v) }
+
     var activeSectionId: String?
         get() = sp.getString(KEY_ACTIVE_SECTION, null)
         set(v) = sp.edit { if (v == null) remove(KEY_ACTIVE_SECTION) else putString(KEY_ACTIVE_SECTION, v) }
@@ -113,6 +117,11 @@ class Prefs(context: Context) {
         get() = sp.getString(KEY_WEBDAV_PW, "") ?: ""
         set(v) = sp.edit { putString(KEY_WEBDAV_PW, v) }
 
+    /** Ordner auf dem Server, unter dem alle Notizbücher liegen — statt eines Pfads je Abschnitt. */
+    var webdavBasePath: String
+        get() = sp.getString(KEY_WEBDAV_BASE, "") ?: ""
+        set(v) = sp.edit { putString(KEY_WEBDAV_BASE, v.trim().trim('/')) }
+
     /** Voreinstellung ist das laufende Schuljahr — sonst schriebe das Board in
      *  einen anderen Jahresordner als der Desktop. */
     var activeSchoolYear: String
@@ -129,6 +138,7 @@ class Prefs(context: Context) {
         username = webdavUsername,
         password = webdavPassword,
         schoolYear = activeSchoolYear,
+        basePath = webdavBasePath,
     )
 
     var toolbarFloating: Boolean
@@ -161,7 +171,9 @@ class Prefs(context: Context) {
         const val KEY_UNBUFFERED = "unbufferedDispatch"
         const val KEY_METRICS_VIS = "metricsVisible"
         const val KEY_TUNING_VIS = "tuningVisible"
+        const val KEY_ACTIVE_NOTEBOOK = "activeNotebookId"
         const val KEY_ACTIVE_SECTION = "activeSectionId"
+        const val KEY_WEBDAV_BASE = "webdavBasePath"
         const val KEY_ACTIVE_PAGE = "activePageId"
         const val KEY_TOOL = "tool"
         const val KEY_LINED_MM = "linedSpacingMm"
