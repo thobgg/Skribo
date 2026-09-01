@@ -29,6 +29,14 @@ class Repository(
     private val pendingSaves = mutableMapOf<String, Runnable>()
     private val debounceMs = 500L
 
+    /**
+     * Wird bei jeder anstehenden Änderung gerufen — der Haken, an dem der
+     * automatische Abgleich hängt. Das Repository weiß als Einziges verlässlich
+     * von *allen* Bearbeitungen; die Aufrufstellen einzeln zu verdrahten hieße,
+     * bei jeder neuen garantiert eine zu vergessen.
+     */
+    var onDirty: (() -> Unit)? = null
+
     init {
         // Warnungen aus dem Kern in Logcat sichtbar machen.
         SkriboLog.sink = SkriboLog.Sink { tag, message -> Log.w(tag, message) }
@@ -62,6 +70,7 @@ class Repository(
     }
 
     private fun scheduleSave(key: String, action: () -> Unit) {
+        onDirty?.invoke()
         pendingSaves[key]?.let { handler.removeCallbacks(it) }
         val r = Runnable {
             try { action() } catch (t: Throwable) { Log.w(TAG, "save [$key] failed: $t") }

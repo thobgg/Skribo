@@ -104,6 +104,12 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
     /** Zuletzt gezeigter Zustand des Abgleichs, klein in der Leiste. */
     var syncNote by remember { mutableStateOf<String?>(null) }
 
+    /** Revisionsstand nach dem letzten erfolgreichen Abgleich. */
+    var lastSyncedRevision by remember { mutableStateOf(-1) }
+
+    /** Fehler des letzten stillen Laufs — derselbe Fehler nervt nur einmal als Dialog. */
+    var lastAutoErrors by remember { mutableStateOf<List<String>>(emptyList()) }
+
     /**
      * Ein Abgleich in beide Richtungen. [quiet] unterdrückt den Abschlussdialog —
      * für den automatischen Lauf beim Start, der nicht jedes Mal ein Fenster
@@ -121,8 +127,13 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
             busy = null
             result
                 .onSuccess { r ->
+                    lastSyncedRevision = controller.revision
                     syncNote = if (r.errors.isEmpty()) "abgeglichen" else "${r.errors.size} Fehler"
-                    if (!quiet || r.errors.isNotEmpty()) {
+                    // Ein stiller Lauf meldet Fehler nur, wenn sie *neu* sind —
+                    // sonst käme alle 60 Sekunden derselbe Dialog.
+                    val show = !quiet || (r.errors.isNotEmpty() && r.errors != lastAutoErrors)
+                    if (quiet) lastAutoErrors = r.errors else lastAutoErrors = emptyList()
+                    if (show) {
                         val summary = buildString {
                             append("${r.pushed.pageCount} Seite(n) gesendet, ")
                             append("${r.pulled.added} neu geholt, ${r.pulled.updated} aktualisiert.")
@@ -140,18 +151,31 @@ fun SkriboApp(controller: DocumentController, assets: AssetCache) {
                 }
                 .onFailure {
                     syncNote = "Abgleich fehlgeschlagen"
-                    // Auch der stille Start-Abgleich darf nicht stumm scheitern —
+                    val errors = listOf(it.message ?: it.toString())
+                    // Auch der stille Abgleich darf nicht stumm scheitern —
                     // genau so blieb ein toter Sync einmal wochenlang unbemerkt.
-                    dialog = AppDialog.SyncErrors(
-                        "Abgleich fehlgeschlagen.",
-                        listOf(it.message ?: it.toString()),
-                    )
+                    // Aber derselbe Fehler nervt nur einmal.
+                    if (!quiet || errors != lastAutoErrors) {
+                        dialog = AppDialog.SyncErrors("Abgleich fehlgeschlagen.", errors)
+                    }
+                    if (quiet) lastAutoErrors = errors
                 }
         }
     }
 
     // Beim Start einmal abgleichen, ohne zu fragen — wie man es von OneNote kennt.
     LaunchedEffect(Unit) { if (controller.webdavConfigured) sync(quiet = true) }
+
+    // Nach einer Bearbeitungspause von selbst abgleichen: Jede Änderung erhöht
+    // die Revision und startet die Wartezeit neu — gesendet wird erst, wenn
+    // Ruhe ist. Nach dem Lauf steht lastSyncedRevision auf dem neuen Stand,
+    // sonst zöge der Pull (der die Revision ebenfalls erhöht) eine Endlosschleife.
+    LaunchedEffect(controller.revision) {
+        if (controller.webdavConfigured && controller.revision != lastSyncedRevision) {
+            kotlinx.coroutines.delay(AUTO_SYNC_PAUSE_MS)
+            sync(quiet = true)
+        }
+    }
 
     /** Gibt das beim Import mitgespeicherte Original wieder heraus. */
     fun exportOriginal() {
@@ -468,6 +492,9 @@ private fun AppDialogHost(
 
 private const val LINK_DROP_X = 40f
 private const val LINK_DROP_Y = 40f
+
+/** Bearbeitungspause, nach der still abgeglichen wird — wie am Board. */
+private const val AUTO_SYNC_PAUSE_MS = 60_000L
 
 // ---------------- Abschnitts-Reiter ----------------
 

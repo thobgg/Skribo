@@ -13,6 +13,8 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.view.Gravity
@@ -73,6 +75,32 @@ class MainActivity : AppCompatActivity() {
     private var currentNotebook: Notebook? = null
     private var currentSection: Section? = null
     private var currentPage: Page? = null
+
+    // ---------------- Automatischer Abgleich ----------------
+    //
+    // Abgeglichen wird nach einer Schreibpause und beim Verlassen der App —
+    // nie mitten im Schreiben. Fehler eines automatischen Laufs stören den
+    // Unterricht nicht mit Dialogen; sie hängen sich als ⚠ an den Menüpunkt
+    // und zeigen ihren Wortlaut erst beim manuellen Abgleichen.
+
+    private val autoSyncHandler = Handler(Looper.getMainLooper())
+    private val autoSyncRunnable = Runnable { triggerSync(auto = true) }
+    @Volatile private var dirtySinceSync = false
+    @Volatile private var syncRunning = false
+    private var lastAutoErrors: List<String> = emptyList()
+
+    private fun scheduleAutoSync() {
+        dirtySinceSync = true
+        if (prefs.webdavServer.isBlank() || prefs.webdavUsername.isBlank()) return
+        autoSyncHandler.removeCallbacks(autoSyncRunnable)
+        autoSyncHandler.postDelayed(autoSyncRunnable, AUTO_SYNC_PAUSE_MS)
+    }
+
+    private fun updateSyncMenuLabel() {
+        findViewById<TextView>(R.id.menuSyncNow)?.text =
+            if (lastAutoErrors.isEmpty()) "Jetzt abgleichen"
+            else "Jetzt abgleichen — ⚠ ${lastAutoErrors.size} Fehler"
+    }
 
     /**
      * Das aktive Notizbuch — stellt sicher, dass immer eines existiert. Ein
@@ -161,6 +189,7 @@ class MainActivity : AppCompatActivity() {
         setupFloatingToolbar()
         setupBackHandling()
 
+        repository.onDirty = { scheduleAutoSync() }
         inkView.onStrokeCommitted = { page -> repository.savePage(page) }
         inkView.onTextBoxTap = { existing, wx, wy ->
             if (existing != null) showTextBoxMenu(existing)
@@ -188,7 +217,16 @@ class MainActivity : AppCompatActivity() {
         currentPage?.let { repository.savePage(it) }
         repository.saveDocumentStructure(document)
         repository.flush()
+        // „App verlassen" ist der Moment „Stunde zu Ende" — jetzt sofort
+        // abgleichen statt auf die Schreibpause zu warten.
+        autoSyncHandler.removeCallbacks(autoSyncRunnable)
+        if (dirtySinceSync) triggerSync(auto = true)
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        autoSyncHandler.removeCallbacks(autoSyncRunnable)
+        super.onDestroy()
     }
 
     /**
@@ -1204,13 +1242,18 @@ class MainActivity : AppCompatActivity() {
      * Die Richtung interessiert beim Benutzen niemanden, deshalb ein Eintrag
      * statt zweier.
      */
-    private fun triggerSync() {
+    private fun triggerSync(auto: Boolean = false) {
         if (prefs.webdavServer.isBlank() || prefs.webdavUsername.isBlank()) {
-            Toast.makeText(this, "Erst WebDAV-Einstellungen ausfüllen", Toast.LENGTH_LONG).show()
+            if (!auto) Toast.makeText(this, "Erst WebDAV-Einstellungen ausfüllen", Toast.LENGTH_LONG).show()
             return
         }
+        if (syncRunning) return
+        syncRunning = true
         repository.flush()
-        Toast.makeText(this, "Sync läuft …", Toast.LENGTH_SHORT).show()
+        // Ab hier gilt der Stand als gesendet; was währenddessen dazukommt,
+        // setzt dirty erneut und stößt den nächsten Lauf an.
+        dirtySinceSync = false
+        if (!auto) Toast.makeText(this, "Sync läuft …", Toast.LENGTH_SHORT).show()
         Thread {
             try {
                 val sync = SkriboSync(prefs::syncConfig, repository.rootDir)
@@ -1220,24 +1263,56 @@ class MainActivity : AppCompatActivity() {
                 repository.saveDocumentStructure(document)
                 repository.flush()
                 runOnUiThread {
-                    currentNotebook = null
-                    currentSection = null
-                    currentPage = null
-                    activateInitial()
                     val errors = push.errors + pull.errors
                     val summary =
                         "${push.pageCount} gesendet · ${pull.added} neu · ${pull.updated} aktualisiert"
-                    if (errors.isEmpty()) {
-                        Toast.makeText(this, summary, Toast.LENGTH_LONG).show()
+                    // Nur bei geholten Änderungen neu aufbauen — sonst risse der
+                    // automatische Lauf die Ansicht mitten im Arbeiten um.
+                    if (pull.added > 0 || pull.updated > 0) {
+                        currentNotebook = null
+                        currentSection = null
+                        currentPage = null
+                        activateInitial()
+                    }
+                    if (auto) {
+                        // Kein Dialog vor der Klasse: Fehler hängen sich als ⚠
+                        // an den Menüpunkt; nur ein *neuer* Fehler gibt einen
+                        // kurzen Hinweis, damit er nicht ganz untergeht.
+                        if (errors.isNotEmpty() && errors != lastAutoErrors) {
+                            Toast.makeText(
+                                this,
+                                "⚠ Abgleich: ${errors.size} Fehler — Wortlaut unter „Jetzt abgleichen“",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
+                        lastAutoErrors = errors
+                        updateSyncMenuLabel()
                     } else {
-                        // Fehler nie als flüchtigen Toast — sichtbar und kopierbar.
-                        showSyncErrorDialog("Abgleich: ${errors.size} Fehler ($summary)", errors)
+                        lastAutoErrors = emptyList()
+                        updateSyncMenuLabel()
+                        if (errors.isEmpty()) {
+                            Toast.makeText(this, summary, Toast.LENGTH_LONG).show()
+                        } else {
+                            // Fehler nie als flüchtigen Toast — sichtbar und kopierbar.
+                            showSyncErrorDialog("Abgleich: ${errors.size} Fehler ($summary)", errors)
+                        }
                     }
                 }
             } catch (e: Exception) {
                 runOnUiThread {
-                    showSyncErrorDialog("Abgleich fehlgeschlagen", listOf(e.message ?: e.toString()))
+                    val message = e.message ?: e.toString()
+                    if (auto) {
+                        if (listOf(message) != lastAutoErrors) {
+                            Toast.makeText(this, "⚠ Abgleich fehlgeschlagen — Wortlaut unter „Jetzt abgleichen“", Toast.LENGTH_LONG).show()
+                        }
+                        lastAutoErrors = listOf(message)
+                        updateSyncMenuLabel()
+                    } else {
+                        showSyncErrorDialog("Abgleich fehlgeschlagen", listOf(message))
+                    }
                 }
+            } finally {
+                syncRunning = false
             }
         }.start()
     }
@@ -1810,5 +1885,12 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val METRICS_THROTTLE_MS = 66L
+
+        /**
+         * Schreibpause, nach der automatisch abgeglichen wird. Lang genug, um
+         * nie mitten in einer Tafelphase zu senden; kurz genug, dass der
+         * Desktop zuhause zeitnah den Stand der Stunde sieht.
+         */
+        const val AUTO_SYNC_PAUSE_MS = 60_000L
     }
 }
