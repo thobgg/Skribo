@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 108 108">
+  <!-- Entspricht dem Adaptive Icon der App (res/drawable/ic_launcher_foreground.xml) -->
+  <rect width="108" height="108" rx="22" fill="#FBFAF6"/>
+  <path d="M 82 32 C 82 19, 36 19, 36 36 C 36 52, 82 52, 82 70 C 82 88, 30 92, 30 78"
+        fill="none" stroke="#0F1729" stroke-width="13" stroke-linecap="round"/>
+</svg>
