@@ -279,8 +279,11 @@ produktionsreif.
   primär; Android-Tablets sekundär.
 - **Zielplattformen Desktop:** Windows 11 und macOS (Kollegium) sowie Linux
   (eigener Arbeitsplatz, Xubuntu) — alle drei müssen bedient werden.
-- **Distribution:** intern, APK direkt auf die Boards (kein Store);
-  Desktop-Pakete pro Plattform (.deb/.msi/.dmg).
+- **Distribution:** Board-APK über den eigenen App-Store (Obtainium, seit
+  19.09.2026, Paket `de.bgghome.skribo`, signiert mit eigenem Schlüssel) —
+  kein Google Play. Desktop-Pakete pro Plattform (.deb/.msi/.dmg) als
+  GitHub-Release. Eine APK gibt es auf GitHub bewusst nicht: sie wäre mit
+  einem anderen Schlüssel signiert und schlösse Updates aus dem Store aus.
 - **Lizenz:** GPLv3 (offener Quellcode).
 - **Datenhaltung:** eigener WebDAV-Server, offenes JSON-Schema, kein Cloud-Zwang.
   **WebDAV läuft bereits auf einer Synology DiskStation** (DSM, WebDAV-Server-Paket)
@@ -312,7 +315,7 @@ produktionsreif.
   Entwickler, und alle drei Desktop-Plattformen (Win 11 / macOS / Linux) aus
   einer Codebasis. Bewusst akzeptiert: JVM-App statt „echtem" Nativ-Look;
   Stift-Druck am Desktop ist zweitrangig, da Ink primär am Board stattfindet.
-- **Lizenz GPLv3**, interne APK-Distribution (kein Store).
+- **Lizenz GPLv3**, Board-APK über den eigenen App-Store (kein Google Play).
 
 ## 6a. Was am Browser-OneNote fehlt (Praxisnotiz 20.08.2026)
 
@@ -339,4 +342,3 @@ zäh. Zwei Beispiele aus dem Unterricht, die zugleich Anforderungen an Skribo si
 - Medien am **Board**: Video/Audio am Board abspielen? Große Dateien —
   komplett syncen oder vom WebDAV streamen? (PDF ist gelöst: die
   Ausdruck-Variante liefert dem Board annotierbare Bilder, siehe §2a.)
-- Repo-Umbenennung Ordner `inktest` → `skribo`? (Repo heißt bereits `Skribo`.)

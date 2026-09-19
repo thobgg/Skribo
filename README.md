@@ -157,6 +157,7 @@ Android SDK (Pfad in `local.properties`, nicht eingecheckt).
 
 ./gradlew :android:assembleDebug   # APK bauen
 ./gradlew :android:installDebug    # auf angeschlossenes Board/Tablet installieren
+./gradlew :android:assembleRelease # signierte APK (braucht keystore.properties)
 
 ./gradlew build                    # alles bauen und testen
 ```

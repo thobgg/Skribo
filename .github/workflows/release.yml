@@ -1,5 +1,8 @@
-# Baut bei jedem Tag vX.Y.Z die Pakete für alle Plattformen und hängt sie
-# an ein GitHub-Release. Manueller Testlauf über "Run workflow" möglich
+# Baut bei jedem Tag vX.Y.Z die Desktop-Pakete für alle Plattformen und hängt
+# sie an ein GitHub-Release. Die Board-APK gehört bewusst NICHT dazu: sie käme
+# hier mit einem Debug-Schlüssel heraus, und wer die installiert, bekommt die
+# signierten Updates aus dem eigenen App-Store nicht mehr (gleicher Paketname,
+# anderer Schlüssel). Der Android-Job baut nur zur Kontrolle. Manueller Testlauf über "Run workflow" möglich
 # (dann nur Artefakte, kein Release).
 name: Release-Pakete
 
@@ -46,25 +49,19 @@ jobs:
           distribution: temurin
           java-version: "21"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Board-APK bauen
-        run: |
-          ./gradlew :android:assembleDebug
-          mv android/build/outputs/apk/debug/android-debug.apk skribo-board-debug.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: android-apk
-          path: skribo-board-debug.apk
-          if-no-files-found: error
+      - name: Board-APK bauen (nur Kontrolle, wird nicht veröffentlicht)
+        run: ./gradlew :android:assembleDebug
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [desktop, android]
+    needs: [desktop]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: desktop-*
           merge-multiple: true
           path: pakete
       - uses: softprops/action-gh-release@v2
